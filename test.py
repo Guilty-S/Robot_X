@@ -16,8 +16,9 @@ if __name__ == "__main__":
         up.CDS_SetSpeed(1,-500)#
         up.CDS_SetSpeed(2,-500)#
         for i in range(0,100):
-            up.LCD_PutString(0, 0, 'Go north all')
-            up.LCD_PutString(0, 20, f'adc {i}')
+            up.LCD_PutString(0, 0, 'Go North All')
+            up.LCD_PutString(0, 20, f'ADC {i}')
+            up.LCD_PutString(0, 40, f'IO {i/10}')
             up.LCD_Refresh()
 
 
