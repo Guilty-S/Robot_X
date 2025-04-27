@@ -13,7 +13,7 @@ if __name__ == "__main__":
     up.LCD_SetFont(up.FONT_12X20)
     print("test succeed")
     while True:
-        up.CDS_SetSpeed(1,-500)#
+        up.CDS_SetSpeed(1,-500)#2025/4/27
         up.CDS_SetSpeed(2,-500)#
         for i in range(0,100):
             up.LCD_PutString(0, 0, 'Go North All')
