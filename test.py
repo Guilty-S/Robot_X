@@ -18,10 +18,12 @@ if __name__ == "__main__":
     print("test succeed")
     print(1)
     while True:
-        up.CDS_SetSpeed(1,650)#2025/4/27
-        up.CDS_SetSpeed(2,700)#
-        if cnt>=200:
-            flag=1
+        up.LCD_PutString(0, 0, 'Go North All')
+        # up.LCD_PutString(0, 20, f'ADC {i}')
+        # up.LCD_PutString(0, 40, f'IO {i / 10}')
+        up.LCD_Refresh()
+        up.CDS_SetSpeed(1,650)
+        up.CDS_SetSpeed(2,700)
         if flag == 0:
             up.CDS_SetAngle(3,600,500)
             up.CDS_SetAngle(4,300,500)
@@ -32,13 +34,7 @@ if __name__ == "__main__":
         # up.CDS_SetAngle(4,200,500)#最低
         # up.CDS_SetAngle(3,400,500)#最高
         # up.CDS_SetAngle(4,500,500)#最高
-        # for i in range(0,100):
-        #     up.LCD_PutString(0, 0, 'Go North All')
-        #     up.LCD_PutString(0, 20, f'ADC {i}')
-        #     up.LCD_PutString(0, 40, f'IO {i/10}')
-        #     up.LCD_Refresh()
         cnt+=1
         print(f'{cnt}')
-        print(f'{flag}')
 
 
