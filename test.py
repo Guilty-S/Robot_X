@@ -35,9 +35,19 @@ def left():
     up.CDS_SetSpeed(2, 1000)
 
 
+def left_low():
+    up.CDS_SetSpeed(1, -500)
+    up.CDS_SetSpeed(2, 500)
+
+
 def right():
     up.CDS_SetSpeed(1, 1000)
     up.CDS_SetSpeed(2, -1000)
+
+
+def right_low():
+    up.CDS_SetSpeed(1, 500)
+    up.CDS_SetSpeed(2, -500)
 
 
 if __name__ == "__main__":
@@ -94,30 +104,30 @@ if __name__ == "__main__":
 
         if IO_3 == 0 and IO_4 == 0:
             if IO_0 == 0 and IO_1 == 1:
-                left()
+                left_low()
             elif IO_0 == 1 and IO_1 == 0:
-                right()
+                right_low()
             elif IO_0 == 1 and IO_1 == 1:
                 if IO_6 == 0 and IO_7 == 1:
                     while not (io_data[0] == 0 and io_data[1] == 0):
-                        left()
+                        left_low()
                         io_data = get_io_data(up)
                 elif IO_6 == 1 and IO_7 == 0:
                     while not (io_data[0] == 0 and io_data[1] == 0):
-                        right()
+                        right_low()
                         io_data = get_io_data(up)
                 elif IO_6 == 0 and IO_7 == 0:
                     while not (io_data[0] == 0 and io_data[1] == 0):
-                        right()
+                        left_low()
                         io_data = get_io_data(up)
                 else:
                     straight()
             else:
                 straight()
         elif IO_3 == 1 and IO_4 == 0:
-            right()
+            right_low()
         elif IO_3 == 0 and IO_4 == 1:
-            left()
+            left_low()
         else:
             back_low()
 
