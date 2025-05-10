@@ -25,6 +25,11 @@ def back():
     up.CDS_SetSpeed(2, -1000)
 
 
+def back_low():
+    up.CDS_SetSpeed(1, -500)
+    up.CDS_SetSpeed(2, -500)
+
+
 def left():
     up.CDS_SetSpeed(1, -1000)
     up.CDS_SetSpeed(2, 1000)
@@ -114,7 +119,7 @@ if __name__ == "__main__":
         elif IO_3 == 0 and IO_4 == 1:
             left()
         else:
-            back()
+            back_low()
 
         cnt += 1
         print(f'adc{adc_value}')
