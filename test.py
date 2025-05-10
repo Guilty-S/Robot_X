@@ -37,6 +37,19 @@ if __name__ == "__main__":
     # FONT_12X20  = 11
     print("test succeed")
     while True:
+        adc_value = up.ADC_Get_All_Channle()
+        io_all_input = up.ADC_IO_GetAllInputLevel()
+        io_array = '{:08b}'.format(io_all_input)
+        io_data.clear()
+
+        for index, value in enumerate(io_array):
+            io = (int)(value)
+            io_data.insert(0, io)
+        print(io_data)
+        if io_data[6] == 0 and io_data[7] == 0:
+            break
+    while True:
+        adc_value = up.ADC_Get_All_Channle()
         io_all_input = up.ADC_IO_GetAllInputLevel()
         io_array = '{:08b}'.format(io_all_input)
         io_data.clear()
@@ -50,7 +63,6 @@ if __name__ == "__main__":
         IO_4=io_data[4]
         IO_6=io_data[5]
         IO_7=io_data[6]
-        adc_value = up.ADC_Get_All_Channle()
         # result = "[{}]".format(",".join(map(str, adc_value)))
 
         up.LCD_SetFont(up.FONT_12X20)
@@ -61,29 +73,30 @@ if __name__ == "__main__":
         up.LCD_SetForeColor(up.COLOR_YELLOW)
         up.LCD_PutString(0, 20, f'{adc_value}')
 
-        up.LCD_Refresh()    #185,222
-                            #315,306
-        back()
-        if adc_value[0]<270 and adc_value[1]<270:
+        up.LCD_Refresh()
+        while adc_value[0]<270 and adc_value[1]<270:    #185,222 #315,306
+            adc_value = up.ADC_Get_All_Channle()
+            back()
             up.CDS_SetAngle(3,600,500)
             up.CDS_SetAngle(4,300,500)
-        else:
-            up.CDS_SetAngle(3,700,500)#最低
-            up.CDS_SetAngle(4,200,500)#最低
 
-        # if IO_3==0 and IO_4==0:
-        #     if IO_0 ==0 and IO_1 ==1:
-        #         left()
-        #     elif IO_0==1 and IO_1==0:
-        #         right()
-        #     else:
-        #         straight()
-        # elif IO_3==1 and IO_4==0:
-        #     right()
-        # elif IO_3 == 0 and IO_4 == 1:
-        #     left()
-        # else:
-        #     back()
+        up.CDS_SetAngle(3,700,500)#最低
+        up.CDS_SetAngle(4,200,500)#最低
+
+        if IO_3==0 and IO_4==0:
+            if IO_0 ==0 and IO_1 ==1:
+                left()
+            elif IO_0==1 and IO_1==0:
+                right()
+            else:
+                straight()
+        elif IO_3==1 and IO_4==0:
+            right()
+        elif IO_3 == 0 and IO_4 == 1:
+            left()
+        else:
+            back()
+
         cnt+=1
         print(f'adc{adc_value}')
 
