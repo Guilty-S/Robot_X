@@ -2,9 +2,116 @@ import cv2
 import subprocess
 import uptech
 import time
+import apriltag
+import numpy as np
 
+k = 0
+taps1 = 0
+mid = 0
+tag_width = 0
+tags = []
+distance = 0
+di_fang_kuai = 1
+zhong_li_kuai = 0
+zha_dan_kuai = 2
+index = 0
 flag = 0
 cnt = 0
+class ApriltagDetect:
+    def __init__(self):
+        self.target_id = 0
+        self.at_detector = apriltag.Detector(apriltag.DetectorOptions(families='tag36h11 tag25h9'))
+
+    def update_frame(self, frame):
+        h0 = 0  # shi fou you 0 ma
+        h1 = 0  # shi fou you 1 ma
+        h2 = 0
+        m1 = 0  # zui zhong xin 1 ma zhong xin zuo biao
+        m0 = 0  # zui zhong xin 0 ma zhong xin zuo biao
+        m2 = 0
+        mx0 = 0
+        mx1 = 0  # ma zhi zhong xin zuo biao
+        mx2 = 0
+        mid0 = 0
+        mid1 = 0
+        mid2 = 0
+        global taps1, index
+        global k
+        global mid
+        global tag_width
+        global tags
+        global distance
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        tags = self.at_detector.detect(gray)
+        k = 0
+        index = 0
+        if tags:
+            k = 1  # 这是个标志位
+            for i in range(1, len(tags)):
+                # 循环从第二个（results[1]）索引开始，进行冒泡排序。（因为前方index是从零开始的）所以排序没有遗漏
+                if tags[i].tag_id == di_fang_kuai or tags[i].tag_id == zhong_li_kuai:
+                    # 如果tag码块id是敌方或中立才进行距离比较，炸弹不管
+                    if tags[index].tag_id == zha_dan_kuai:
+                        # 这一步确保index=0的那个id不是炸弹，若是炸弹，则将索引就改成i（i现在肯定不是炸弹）
+                        index = i
+                        if tags[i].tag_id == zhong_li_kuai:
+                            if tags[index].tag_id == di_fang_kuai:
+                                index = i
+                            elif (self.get_distance(tags[index].homography, 4300) >
+                                  self.get_distance(tags[i].homography, 4300)):  # 冒泡排序
+                                index = i
+                        elif tags[index].tag_id == di_fang_kuai:
+                            if (self.get_distance(tags[index].homography, 4300) >
+                                    self.get_distance(tags[i].homography, 4300)):  # 冒泡排序
+                                index = i
+            if tags[index].tag_id == di_fang_kuai or tags[index].tag_id == zhong_li_kuai:  # 冒泡后如果最近的id是中立或敌方
+                taps1 = 1
+            else:  # 冒泡后如果的id是炸弹块(侧面证明了没有检测到敌方和中立)
+                taps1 = 0
+            distance = int(self.get_distance(tags[index].homography, 4300))
+            mid = tuple(tags[index].corners[0].astype(int))[0] / 2 + \
+                  tuple(tags[index].corners[2].astype(int))[0] / 2  # 计算tag的横向位置
+            tag_width = abs(tuple(tags[index].corners[0].astype(int))[0] - tuple(tags[index].corners[2].astype(int))[0])
+            # print(taps1, tags[index].tag_id)
+        else:
+            k = 0
+
+    def get_distance(self, H, t):
+        """
+        :param H: homography matrix
+        :param t: ???
+        :return: distance
+        """
+        ss = 0.5
+        src = np.array([[-ss, -ss, 0],
+                        [ss, -ss, 0],
+                        [ss, ss, 0],
+                        [-ss, ss, 0]])
+        Kmat = np.array([[700, 0, 0],
+                         [0, 700, 0],
+                         [0, 0, 1]]) * 1.0
+        disCoeffs = np.zeros([4, 1]) * 1.0
+        ipoints = np.array([[-1, -1],
+                            [1, -1],
+                            [1, 1],
+                            [-1, 1]])
+        for point in ipoints:
+            x = point[0]
+            y = point[1]
+            z = H[2, 0] * x + H[2, 1] * y + H[2, 2]
+            point[0] = (H[0, 0] * x + H[0, 1] * y + H[0, 2]) / z * 1.0
+            point[1] = (H[1, 0] * x + H[1, 1] * y + H[1, 2]) / z * 1.0
+        campoint = ipoints * 1.0
+        opoints = np.array([[-1.0, -1.0, 0.0],
+                            [1.0, -1.0, 0.0],
+                            [1.0, 1.0, 0.0],
+                            [-1.0, 1.0, 0.0]])
+        opoints = opoints * 0.5
+        rate, rvec, tvec = cv2.solvePnP(opoints, campoint, Kmat, disCoeffs)
+        point, jac = cv2.projectPoints(src, np.zeros(rvec.shape), tvec, Kmat, disCoeffs)
+        points = np.int32(np.reshape(point, [4, 2]))
+        distance = np.abs(t / np.linalg.norm(points[0] - points[1]))
+        return distance
 
 
 def get_io_data(up):
