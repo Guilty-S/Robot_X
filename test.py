@@ -1,3 +1,5 @@
+import cv2
+import subprocess
 import uptech
 import time
 
@@ -21,7 +23,7 @@ def straight():
 
 
 def back():
-    up.CDS_SetSpeed(1, -700)
+    up.CDS_SetSpeed(1, -1000)
     up.CDS_SetSpeed(2, -1000)
 
 
@@ -68,6 +70,43 @@ if __name__ == "__main__":
     # FONT_12X16  = 10
     # FONT_12X20  = 11
     print("test succeed")
+    global frame
+    cap = cv2.VideoCapture('/dev/video0')
+    cap.set(3, 640)
+    cap.set(4, 480)
+    while True:
+        ret, frame = cap.read()
+        if ret is False:
+            cap.release()
+            time.sleep(0.1)
+            print("reconnect to camera")
+            subprocess.check_call("sudo modprobe -rf uvcvideo", shell=True)
+            time.sleep(0.4)
+            subprocess.check_call("sudo modprobe uvcvideo", shell=True)
+            time.sleep(0.2)
+            cap = cv2.VideoCapture('/dev/video0')
+
+        frame = cv2.rotate(frame, cv2.ROTATE_180)
+        cv2.imshow("img", frame)
+        if cv2.waitKey(1) & 0xff == ord('q'):
+            break
+    cap.release()
+    cv2.destroyAllWindows()
+    # cap = cv2.VideoCapture(0)
+    # if not cap.isOpened():
+    #     print("摄像头未打开")
+    #     exit()
+    #
+    # # 捕获一帧并保存
+    # ret, frame = cap.read()
+    # if ret:
+    #     cv2.imwrite("capture.jpg", frame)
+    #     print("图像已保存为 capture.jpg")
+    # else:
+    #     print("无法读取帧")
+    #
+    # cap.release()
+    # cv2.destroyAllWindows()
     while True:
         adc_value = up.ADC_Get_All_Channle()
         io_data = get_io_data(up)
