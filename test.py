@@ -4,6 +4,8 @@ import uptech
 import time
 import apriltag
 import numpy as np
+import signal
+import threading
 
 k = 0
 taps1 = 0
@@ -127,6 +129,7 @@ def get_io_data(up):
         io_data.insert(0, io)
     return io_data
 
+
 def April_start_detect():
     global frame
     cap = cv2.VideoCapture('/dev/video0')
@@ -165,6 +168,21 @@ def April_start_detect():
     cap.release()
     cv2.destroyAllWindows()
 
+
+def April_tag_move():
+    if mid < 350 - tag_width / 6:
+        left()
+        time.sleep(0.03)
+        print("左")
+    elif mid > 350 + tag_width / 6:
+        right()
+        time.sleep(0.03)
+        print("右")
+    else:
+        straight()
+        print("前进")
+
+
 def straight():
     up.CDS_SetSpeed(1, 500)
     up.CDS_SetSpeed(2, 500)
@@ -173,6 +191,11 @@ def straight():
 def back():
     up.CDS_SetSpeed(1, -1000)
     up.CDS_SetSpeed(2, -1000)
+
+
+def stop():
+    up.CDS_SetSpeed(1, 0)
+    up.CDS_SetSpeed(2, 0)
 
 
 def back_low():
@@ -200,6 +223,11 @@ def right_low():
     up.CDS_SetSpeed(2, -500)
 
 
+def signal_handler(handler_signal, handler_frame):
+    stop()
+    exit(0)
+
+
 if __name__ == "__main__":
     up = uptech.UpTech()
     up.LCD_Open(2)
@@ -218,6 +246,9 @@ if __name__ == "__main__":
     # FONT_12X16  = 10
     # FONT_12X20  = 11
     print("test succeed")
+    signal.signal(signal.SIGINT, signal_handler)
+    target2 = threading.Thread(target=April_start_detect)
+    target2.start()
     # while True:
     #     adc_value = up.ADC_Get_All_Channle()
     #     io_data = get_io_data(up)
@@ -233,8 +264,8 @@ if __name__ == "__main__":
         IO_6 = io_data[6]
         IO_7 = io_data[7]
         # result = "[{}]".format(",".join(map(str, adc_value)))
-        April_start_detect()
 
+        April_tag_move()
         up.LCD_SetFont(up.FONT_12X20)
         up.LCD_SetForeColor(up.COLOR_GBLUE)
         up.LCD_PutString(0, 0, 'Go North All')
