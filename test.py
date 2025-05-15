@@ -11,12 +11,14 @@ mid = 0
 tag_width = 0
 tags = []
 distance = 0
-di_fang_kuai = 1
-zhong_li_kuai = 0
-zha_dan_kuai = 2
+di_fang_kuai = 1  # 敌方块
+zhong_li_kuai = 0  # 中立块
+zha_dan_kuai = 2  # 炸弹块
 index = 0
 flag = 0
 cnt = 0
+
+
 class ApriltagDetect:
     def __init__(self):
         self.target_id = 0
@@ -54,16 +56,18 @@ class ApriltagDetect:
                     if tags[index].tag_id == zha_dan_kuai:
                         # 这一步确保index=0的那个id不是炸弹，若是炸弹，则将索引就改成i（i现在肯定不是炸弹）
                         index = i
-                        if tags[i].tag_id == zhong_li_kuai:
-                            if tags[index].tag_id == di_fang_kuai:
-                                index = i
-                            elif (self.get_distance(tags[index].homography, 4300) >
-                                  self.get_distance(tags[i].homography, 4300)):  # 冒泡排序
-                                index = i
-                        elif tags[index].tag_id == di_fang_kuai:
+                    if tags[i].tag_id == zhong_li_kuai:
+                        if tags[index].tag_id == zhong_li_kuai:
                             if (self.get_distance(tags[index].homography, 4300) >
                                     self.get_distance(tags[i].homography, 4300)):  # 冒泡排序
                                 index = i
+                    elif tags[i].tag_id == di_fang_kuai:
+                        if tags[index].tag_id == di_fang_kuai:
+                            if (self.get_distance(tags[index].homography, 4300) >
+                                    self.get_distance(tags[i].homography, 4300)):  # 冒泡排序
+                                index = i
+                        elif tags[index].tag_id == zhong_li_kuai:
+                            index = i
             if tags[index].tag_id == di_fang_kuai or tags[index].tag_id == zhong_li_kuai:  # 冒泡后如果最近的id是中立或敌方
                 taps1 = 1
             else:  # 冒泡后如果的id是炸弹块(侧面证明了没有检测到敌方和中立)
@@ -179,6 +183,7 @@ if __name__ == "__main__":
     print("test succeed")
     global frame
     cap = cv2.VideoCapture('/dev/video0')
+    ad = ApriltagDetect()
     cap.set(3, 640)
     cap.set(4, 480)
     while True:
@@ -194,6 +199,19 @@ if __name__ == "__main__":
             cap = cv2.VideoCapture('/dev/video0')
 
         frame = cv2.rotate(frame, cv2.ROTATE_180)
+        ad.update_frame(frame)
+        if tags:
+            # print(tags)
+            # print(index)
+            print(mid)
+            print(tag_width)
+            if taps1 == 0:
+                print("炸弹")
+            else:
+                if tags[index].tag_id == 1:
+                    print("敌方")
+                elif tags[index].tag_id == 0:
+                    print("中立")
         cv2.imshow("img", frame)
         if cv2.waitKey(1) & 0xff == ord('q'):
             break
