@@ -7,8 +7,8 @@ import numpy as np
 import signal
 import threading
 
-k = 0
-taps1 = 0
+tag_safe = 0
+tag_flag = 0
 mid = 0
 tag_width = 0
 tags = []
@@ -39,18 +39,18 @@ class ApriltagDetect:
         mid0 = 0
         mid1 = 0
         mid2 = 0
-        global taps1, index
-        global k
+        global tag_flag, tag_safe
+        global index
         global mid
         global tag_width
         global tags
         global distance
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         tags = self.at_detector.detect(gray)
-        k = 0
+        tag_flag = 0
         index = 0
         if tags:
-            k = 1  # 这是个标志位
+            tag_flag = 1  # 这是个标志位
             for i in range(1, len(tags)):
                 # 循环从第二个（results[1]）索引开始，进行冒泡排序。（因为前方index是从零开始的）所以排序没有遗漏
                 if tags[i].tag_id == di_fang_kuai or tags[i].tag_id == zhong_li_kuai:
@@ -71,23 +71,17 @@ class ApriltagDetect:
                         elif tags[index].tag_id == zhong_li_kuai:
                             index = i
             if tags[index].tag_id == di_fang_kuai or tags[index].tag_id == zhong_li_kuai:  # 冒泡后如果最近的id是中立或敌方
-                taps1 = 1
+                tag_safe = 1
             else:  # 冒泡后如果的id是炸弹块(侧面证明了没有检测到敌方和中立)
-                taps1 = 0
+                tag_safe = 0
             distance = int(self.get_distance(tags[index].homography, 4300))
             mid = tuple(tags[index].corners[0].astype(int))[0] / 2 + \
                   tuple(tags[index].corners[2].astype(int))[0] / 2  # 计算tag的横向位置
             tag_width = abs(tuple(tags[index].corners[0].astype(int))[0] - tuple(tags[index].corners[2].astype(int))[0])
-            # print(taps1, tags[index].tag_id)
         else:
-            k = 0
+            tag_flag = 0
 
     def get_distance(self, H, t):
-        """
-        :param H: homography matrix
-        :param t: ???
-        :return: distance
-        """
         ss = 0.5
         src = np.array([[-ss, -ss, 0],
                         [ss, -ss, 0],
@@ -133,8 +127,8 @@ def get_io_data(up):
 def April_start_detect():
     global frame
     cap = cv2.VideoCapture('/dev/video0')
-    cap.set(3, 640)
-    cap.set(4, 480)
+    cap.set(3, 320)
+    cap.set(4, 240)
     ad = ApriltagDetect()
     while True:
         ret, frame = cap.read()
@@ -153,9 +147,9 @@ def April_start_detect():
         if tags:
             # print(tags)
             # print(index)
-            print(mid)
-            print(tag_width)
-            if taps1 == 0:
+            print(f"中心位置{mid}")
+            print(f"距离{distance}")
+            if tag_safe == 0:
                 print("炸弹")
             else:
                 if tags[index].tag_id == 1:
@@ -170,17 +164,34 @@ def April_start_detect():
 
 
 def April_tag_move():
-    if mid < 350 - tag_width / 6:
+    if mid < 160 - tag_width / 6:
         left()
         time.sleep(0.03)
         print("左")
-    elif mid > 350 + tag_width / 6:
+    elif mid > 160 + tag_width / 6:
         right()
         time.sleep(0.03)
         print("右")
     else:
         straight()
         print("前进")
+
+
+def April_tag_escape():
+    if distance < 50:
+        back()
+        time.sleep(0.2)
+        left()
+    elif distance < 120 and distance >= 60:
+        if mid < 160:
+            right()
+        else:
+            left()
+
+
+def signal_handler(handler_signal, handler_frame):
+    stop()
+    exit(0)
 
 
 def straight():
@@ -223,11 +234,6 @@ def right_low():
     up.CDS_SetSpeed(2, -500)
 
 
-def signal_handler(handler_signal, handler_frame):
-    stop()
-    exit(0)
-
-
 if __name__ == "__main__":
     up = uptech.UpTech()
     up.LCD_Open(2)
@@ -249,23 +255,15 @@ if __name__ == "__main__":
     signal.signal(signal.SIGINT, signal_handler)
     target2 = threading.Thread(target=April_start_detect)
     target2.start()
-    # while True:
-    #     adc_value = up.ADC_Get_All_Channle()
-    #     io_data = get_io_data(up)
-    #     if io_data[6] == 0 and io_data[7] == 0:
-    #         break
     while True:
         adc_value = up.ADC_Get_All_Channle()
         io_data = get_io_data(up)
-        IO_0 = io_data[0]
-        IO_1 = io_data[1]
-        IO_3 = io_data[3]
-        IO_4 = io_data[4]
-        IO_6 = io_data[6]
-        IO_7 = io_data[7]
+        if io_data[6] == 0 and io_data[7] == 0:
+            break
+    while True:
+        adc_value = up.ADC_Get_All_Channle()
+        io_data = get_io_data(up)
         # result = "[{}]".format(",".join(map(str, adc_value)))
-
-        April_tag_move()
         up.LCD_SetFont(up.FONT_12X20)
         up.LCD_SetForeColor(up.COLOR_GBLUE)
         up.LCD_PutString(0, 0, 'Go North All')
@@ -284,34 +282,68 @@ if __name__ == "__main__":
         up.CDS_SetAngle(3, 700, 500)  # 最低
         up.CDS_SetAngle(4, 200, 500)  # 最低
 
-        if IO_3 == 0 and IO_4 == 0:
-            if IO_0 == 0 and IO_1 == 1:
-                left_low()
-            elif IO_0 == 1 and IO_1 == 0:
-                right_low()
-            elif IO_0 == 1 and IO_1 == 1:
-                if IO_6 == 0 and IO_7 == 1:
-                    while not (io_data[0] == 0 and io_data[1] == 0):
-                        left_low()
-                        io_data = get_io_data(up)
-                elif IO_6 == 1 and IO_7 == 0:
-                    while not (io_data[0] == 0 and io_data[1] == 0):
-                        right_low()
-                        io_data = get_io_data(up)
-                elif IO_6 == 0 and IO_7 == 0:
-                    while not (io_data[0] == 0 and io_data[1] == 0):
-                        left_low()
-                        io_data = get_io_data(up)
+        # 0、1 正前方红外   3、4斜向下   6、7左右
+        if io_data[3] == 0 and io_data[4] == 0:
+            if tag_flag:
+                if tag_safe:
+                    April_tag_move()
                 else:
-                    straight()
+                    April_tag_escape()
             else:
-                straight()
-        elif IO_3 == 1 and IO_4 == 0:
-            right_low()
-        elif IO_3 == 0 and IO_4 == 1:
-            left_low()
+                if io_data[0] == 0 and io_data[1] == 0:
+                    straight()
+                elif io_data[0] == 1 and io_data[1] == 0:
+                    right_low()
+                elif io_data[0] == 0 and io_data[1] == 1:
+                    left_low()
+                else:
+                    if io_data[6] == 1 and io_data[7] == 0:
+                        while not tag_flag == 0 or io_data[0] == 0 and io_data[1] == 0:
+                            right()
+                            io_data = get_io_data(up)
+                    elif io_data[6] == 0 and io_data[7] == 1:
+                        while not tag_flag == 0 or io_data[0] == 0 and io_data[1] == 0:
+                            left()
+                            io_data = get_io_data(up)
+                    elif io_data[6] == 0 and io_data[7] == 0:
+                        while not tag_flag == 0 or io_data[0] == 0 and io_data[1] == 0:
+                            left()
+                            io_data = get_io_data(up)
+                    else:
+                        straight()
+        elif io_data[3] == 1 and io_data[4] == 0:
+            right()
+        elif io_data[3] == 0 and io_data[4] == 1:
+            left()
         else:
-            back_low()
-
-        cnt += 1
+            right()
         print(f'adc{adc_value}')
+
+        # if IO_3 == 0 and IO_4 == 0:
+        #     if IO_0 == 0 and IO_1 == 1:
+        #         left_low()
+        #     elif IO_0 == 1 and IO_1 == 0:
+        #         right_low()
+        #     elif IO_0 == 1 and IO_1 == 1:
+        #         if IO_6 == 0 and IO_7 == 1:
+        #             while not (io_data[0] == 0 and io_data[1] == 0):
+        #                 left_low()
+        #                 io_data = get_io_data(up)
+        #         elif IO_6 == 1 and IO_7 == 0:
+        #             while not (io_data[0] == 0 and io_data[1] == 0):
+        #                 right_low()
+        #                 io_data = get_io_data(up)
+        #         elif IO_6 == 0 and IO_7 == 0:
+        #             while not (io_data[0] == 0 and io_data[1] == 0):
+        #                 left_low()
+        #                 io_data = get_io_data(up)
+        #         else:
+        #             straight()
+        #     else:
+        #         straight()
+        # elif IO_3 == 1 and IO_4 == 0:
+        #     right_low()
+        # elif IO_3 == 0 and IO_4 == 1:
+        #     left_low()
+        # else:
+        #     back_low()
