@@ -127,6 +127,43 @@ def get_io_data(up):
         io_data.insert(0, io)
     return io_data
 
+def April_start_detect():
+    global frame
+    cap = cv2.VideoCapture('/dev/video0')
+    cap.set(3, 640)
+    cap.set(4, 480)
+    ad = ApriltagDetect()
+    while True:
+        ret, frame = cap.read()
+        frame = cv2.rotate(frame, cv2.ROTATE_180)
+        ad.update_frame(frame)
+        if ret is False:
+            cap.release()
+            time.sleep(0.1)
+            print("reconnect to camera")
+            subprocess.check_call("sudo modprobe -rf uvcvideo", shell=True)
+            time.sleep(0.4)
+            subprocess.check_call("sudo modprobe uvcvideo", shell=True)
+            time.sleep(0.2)
+            cap = cv2.VideoCapture('/dev/video0')
+
+        if tags:
+            # print(tags)
+            # print(index)
+            print(mid)
+            print(tag_width)
+            if taps1 == 0:
+                print("炸弹")
+            else:
+                if tags[index].tag_id == 1:
+                    print("敌方")
+                elif tags[index].tag_id == 0:
+                    print("中立")
+        cv2.imshow("img", frame)
+        if cv2.waitKey(1) & 0xff == ord('q'):
+            break
+    cap.release()
+    cv2.destroyAllWindows()
 
 def straight():
     up.CDS_SetSpeed(1, 500)
@@ -181,62 +218,11 @@ if __name__ == "__main__":
     # FONT_12X16  = 10
     # FONT_12X20  = 11
     print("test succeed")
-    global frame
-    cap = cv2.VideoCapture('/dev/video0')
-    ad = ApriltagDetect()
-    cap.set(3, 640)
-    cap.set(4, 480)
-    while True:
-        ret, frame = cap.read()
-        if ret is False:
-            cap.release()
-            time.sleep(0.1)
-            print("reconnect to camera")
-            subprocess.check_call("sudo modprobe -rf uvcvideo", shell=True)
-            time.sleep(0.4)
-            subprocess.check_call("sudo modprobe uvcvideo", shell=True)
-            time.sleep(0.2)
-            cap = cv2.VideoCapture('/dev/video0')
-
-        frame = cv2.rotate(frame, cv2.ROTATE_180)
-        ad.update_frame(frame)
-        if tags:
-            # print(tags)
-            # print(index)
-            print(mid)
-            print(tag_width)
-            if taps1 == 0:
-                print("炸弹")
-            else:
-                if tags[index].tag_id == 1:
-                    print("敌方")
-                elif tags[index].tag_id == 0:
-                    print("中立")
-        cv2.imshow("img", frame)
-        if cv2.waitKey(1) & 0xff == ord('q'):
-            break
-    cap.release()
-    cv2.destroyAllWindows()
-    # cap = cv2.VideoCapture(0)
-    # if not cap.isOpened():
-    #     print("摄像头未打开")
-    #     exit()
-    #
-    # # 捕获一帧并保存
-    # ret, frame = cap.read()
-    # if ret:
-    #     cv2.imwrite("capture.jpg", frame)
-    #     print("图像已保存为 capture.jpg")
-    # else:
-    #     print("无法读取帧")
-    #
-    # cap.release()
-    # cv2.destroyAllWindows()
-    while True:
-        adc_value = up.ADC_Get_All_Channle()
-        io_data = get_io_data(up)
-        if io_data[6] == 0 and io_data[7] == 0:
-            break
+    # while True:
+    #     adc_value = up.ADC_Get_All_Channle()
+    #     io_data = get_io_data(up)
+    #     if io_data[6] == 0 and io_data[7] == 0:
+    #         break
     while True:
         adc_value = up.ADC_Get_All_Channle()
         io_data = get_io_data(up)
@@ -247,6 +233,7 @@ if __name__ == "__main__":
         IO_6 = io_data[6]
         IO_7 = io_data[7]
         # result = "[{}]".format(",".join(map(str, adc_value)))
+        April_start_detect()
 
         up.LCD_SetFont(up.FONT_12X20)
         up.LCD_SetForeColor(up.COLOR_GBLUE)
