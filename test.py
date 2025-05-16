@@ -145,19 +145,19 @@ def April_start_detect():
             time.sleep(0.2)
             cap = cv2.VideoCapture('/dev/video0')
 
-        if tags:
-            # print(tags)
-            # print(index)
-            print(f"中心位置{mid}")
-            print(f"距离{distance}")
-            print(f"宽度{tag_width}")
-            if tag_safe == 0:
-                print("炸弹")
-            else:
-                if tags[index].tag_id == 1:
-                    print("敌方")
-                elif tags[index].tag_id == 0:
-                    print("中立")
+        # if tags:
+        #     # print(tags)
+        #     # print(index)
+        #     print(f"中心位置{mid}")
+        #     print(f"距离{distance}")
+        #     print(f"宽度{tag_width}")
+        #     if tag_safe == 0:
+        #         print("炸弹")
+        #     else:
+        #         if tags[index].tag_id == 1:
+        #             print("敌方")
+        #         elif tags[index].tag_id == 0:
+        #             print("中立")
         cv2.imshow("img", frame)
         if cv2.waitKey(1) & 0xff == ord('q'):
             break
@@ -166,44 +166,20 @@ def April_start_detect():
 
 
 def April_tag_move():
-    if distance < 80:
-        if mid < 160 - tag_width / 4:
-            left_low_low()
-            print("左")
-        elif mid > 160 + tag_width / 4:
-            right_low_low()
-            print("右")
-        else:
-            straight()
-            print("前进")
-    elif distance < 160 and distance >= 80:
-        if mid < 160 - tag_width / 2:
-            left_low()
-            print("左")
-        elif mid > 160 + tag_width / 2:
-            right_low()
-            print("右")
-        else:
-            straight()
-            print("前进")
+    if mid < 160 - tag_width / 4:
+        left_low_low()
+        # print("左")
+    elif mid > 160 + tag_width / 4:
+        right_low_low()
+        # print("右")
     else:
-        if mid < 160 - tag_width * 2:
-            left()
-            print("左")
-        elif mid > 160 + tag_width * 2:
-            right()
-            print("右")
-        else:
-            straight_fast()
-            print("前进")
+        straight()
+        # print("前进")
+
 
 
 def April_tag_escape():
-    if distance < 50:
-        back()
-        time.sleep(0.2)
-        left()
-    elif distance < 120 and distance >= 60:
+    if distance < 200:
         if mid < 160:
             right()
         else:
@@ -217,7 +193,7 @@ def signal_handler(handler_signal, handler_frame):
 
 def straight():
     up.CDS_SetSpeed(1, 500)
-    up.CDS_SetSpeed(2, 500)
+    up.CDS_SetSpeed(2, 570)
 
 
 def straight_fast():
@@ -334,24 +310,11 @@ if __name__ == "__main__":
                 elif io_data[0] == 0 and io_data[1] == 1:
                     left_low()
                 else:
-                    if io_data[6] == 1 and io_data[7] == 0:
-                        while not tag_flag == 0 or io_data[0] == 0 and io_data[1] == 0:
-                            right()
-                            io_data = get_io_data(up)
-                    elif io_data[6] == 0 and io_data[7] == 1:
-                        while not tag_flag == 0 or io_data[0] == 0 and io_data[1] == 0:
-                            left()
-                            io_data = get_io_data(up)
-                    elif io_data[6] == 0 and io_data[7] == 0:
-                        while not tag_flag == 0 or io_data[0] == 0 and io_data[1] == 0:
-                            left()
-                            io_data = get_io_data(up)
-                    else:
-                        straight()
+                    straight()
         elif io_data[3] == 1 and io_data[4] == 0:
-            right_low_low()
+            right_low()
         elif io_data[3] == 0 and io_data[4] == 1:
-            left_low_low()
+            left_low()
         else:
             back()
             time.sleep(0.1)
