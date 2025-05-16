@@ -129,6 +129,7 @@ def April_start_detect():
     cap = cv2.VideoCapture('/dev/video0')
     cap.set(3, 320)
     cap.set(4, 240)
+    cap.set(cv2.CAP_PROP_FPS, 60)
     ad = ApriltagDetect()
     while True:
         ret, frame = cap.read()
@@ -149,6 +150,7 @@ def April_start_detect():
             # print(index)
             print(f"中心位置{mid}")
             print(f"距离{distance}")
+            print(f"宽度{tag_width}")
             if tag_safe == 0:
                 print("炸弹")
             else:
@@ -164,13 +166,11 @@ def April_start_detect():
 
 
 def April_tag_move():
-    if mid < 160 - tag_width / 6:
-        left()
-        time.sleep(0.03)
+    if mid < 160 - tag_width / 2:
+        left_low_low()
         print("左")
-    elif mid > 160 + tag_width / 6:
-        right()
-        time.sleep(0.03)
+    elif mid > 160 + tag_width / 2 :
+        right_low_low()
         print("右")
     else:
         straight()
@@ -204,7 +204,6 @@ def back():
     up.CDS_SetSpeed(2, -1000)
 
 
-
 def back_low():
     up.CDS_SetSpeed(1, -500)
     up.CDS_SetSpeed(2, -500)
@@ -221,12 +220,13 @@ def left():
 
 
 def left_low():
-    up.CDS_SetSpeed(1, -600)
-    up.CDS_SetSpeed(2, 600)
+    up.CDS_SetSpeed(1, -700)
+    up.CDS_SetSpeed(2, 700)
+
 
 def left_low_low():
-    up.CDS_SetSpeed(1, -300)
-    up.CDS_SetSpeed(2, 300)
+    up.CDS_SetSpeed(1, -400)
+    up.CDS_SetSpeed(2, 400)
 
 
 def right():
@@ -235,13 +235,14 @@ def right():
 
 
 def right_low():
-    up.CDS_SetSpeed(1, 600)
-    up.CDS_SetSpeed(2, -600)
+    up.CDS_SetSpeed(1, 700)
+    up.CDS_SetSpeed(2, -700)
 
 
 def right_low_low():
-    up.CDS_SetSpeed(1, 300)
-    up.CDS_SetSpeed(2, -300)
+    up.CDS_SetSpeed(1, 400)
+    up.CDS_SetSpeed(2, -400)
+
 
 if __name__ == "__main__":
     up = uptech.UpTech()
@@ -282,11 +283,12 @@ if __name__ == "__main__":
         up.LCD_PutString(0, 20, f'{adc_value}')
 
         up.LCD_Refresh()
-        while adc_value[0] < 270 and adc_value[1] < 270:  # 185,222 #315,306
+        while adc_value[0] < 220 and adc_value[1] < 250:  # 185,222 #315,306
             adc_value = up.ADC_Get_All_Channle()
-            back()
-            up.CDS_SetAngle(3, 600, 500)
-            up.CDS_SetAngle(4, 300, 500)
+        #     # back()
+            stop()
+            # up.CDS_SetAngle(3, 600, 500)
+            # up.CDS_SetAngle(4, 300, 500)
 
         up.CDS_SetAngle(3, 700, 500)  # 最低
         up.CDS_SetAngle(4, 200, 500)  # 最低
@@ -302,9 +304,9 @@ if __name__ == "__main__":
                 if io_data[0] == 0 and io_data[1] == 0:
                     straight()
                 elif io_data[0] == 1 and io_data[1] == 0:
-                    right_low()
+                    right_low_low()
                 elif io_data[0] == 0 and io_data[1] == 1:
-                    left_low()
+                    left_low_low()
                 else:
                     if io_data[6] == 1 and io_data[7] == 0:
                         while not tag_flag == 0 or io_data[0] == 0 and io_data[1] == 0:
@@ -321,10 +323,12 @@ if __name__ == "__main__":
                     else:
                         straight()
         elif io_data[3] == 1 and io_data[4] == 0:
-            right()
+            right_low()
         elif io_data[3] == 0 and io_data[4] == 1:
-            left()
+            left_low()
         else:
+            back()
+            time.sleep(0.1)
             right()
         # print(f'adc{adc_value}')
 
