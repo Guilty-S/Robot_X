@@ -13,12 +13,10 @@ mid = 0
 tag_width = 0
 tags = []
 distance = 0
-index = 0
-
 di_fang_kuai = 1  # 敌方块
 zhong_li_kuai = 0  # 中立块
 zha_dan_kuai = 2  # 炸弹块
-
+index = 0
 flag = 0
 cnt = 0
 
@@ -145,19 +143,19 @@ def April_start_detect():
             subprocess.check_call("sudo modprobe uvcvideo", shell=True)
             time.sleep(0.2)
             cap = cv2.VideoCapture('/dev/video0')
-        #
-        # if tags:
-        #     # print(tags)
-        #     # print(index)
-        #     print(f"中心位置{mid}")
-        #     print(f"距离{distance}")
-        #     if tag_safe == 0:
-        #         print("炸弹")
-        #     else:
-        #         if tags[index].tag_id == 1:
-        #             print("敌方")
-        #         elif tags[index].tag_id == 0:
-        #             print("中立")
+
+        if tags:
+            # print(tags)
+            # print(index)
+            print(f"中心位置{mid}")
+            print(f"距离{distance}")
+            if tag_safe == 0:
+                print("炸弹")
+            else:
+                if tags[index].tag_id == 1:
+                    print("敌方")
+                elif tags[index].tag_id == 0:
+                    print("中立")
         cv2.imshow("img", frame)
         if cv2.waitKey(1) & 0xff == ord('q'):
             break
@@ -167,27 +165,28 @@ def April_start_detect():
 
 def April_tag_move():
     if mid < 160 - tag_width / 6:
-        left_low()
-        # time.sleep(0.03)
-        # print("左")
+        left()
+        time.sleep(0.03)
+        print("左")
     elif mid > 160 + tag_width / 6:
-        right_low()
-        # time.sleep(0.03)
-        # print("右")
+        right()
+        time.sleep(0.03)
+        print("右")
     else:
         straight()
-        # print("前进")
+        print("前进")
 
 
 def April_tag_escape():
     if distance < 50:
         back()
+        time.sleep(0.2)
         left()
     elif distance < 120 and distance >= 60:
         if mid < 160:
-            right_low()
+            right()
         else:
-            left_low()
+            left()
 
 
 def signal_handler(handler_signal, handler_frame):
@@ -205,14 +204,15 @@ def back():
     up.CDS_SetSpeed(2, -1000)
 
 
-def stop():
-    up.CDS_SetSpeed(1, 0)
-    up.CDS_SetSpeed(2, 0)
-
 
 def back_low():
     up.CDS_SetSpeed(1, -500)
     up.CDS_SetSpeed(2, -500)
+
+
+def stop():
+    up.CDS_SetSpeed(1, 0)
+    up.CDS_SetSpeed(2, 0)
 
 
 def left():
@@ -221,8 +221,12 @@ def left():
 
 
 def left_low():
-    up.CDS_SetSpeed(1, -500)
-    up.CDS_SetSpeed(2, 500)
+    up.CDS_SetSpeed(1, -600)
+    up.CDS_SetSpeed(2, 600)
+
+def left_low_low():
+    up.CDS_SetSpeed(1, -300)
+    up.CDS_SetSpeed(2, 300)
 
 
 def right():
@@ -231,9 +235,13 @@ def right():
 
 
 def right_low():
-    up.CDS_SetSpeed(1, 500)
-    up.CDS_SetSpeed(2, -500)
+    up.CDS_SetSpeed(1, 600)
+    up.CDS_SetSpeed(2, -600)
 
+
+def right_low_low():
+    up.CDS_SetSpeed(1, 300)
+    up.CDS_SetSpeed(2, -300)
 
 if __name__ == "__main__":
     up = uptech.UpTech()
@@ -253,6 +261,9 @@ if __name__ == "__main__":
     # FONT_12X16  = 10
     # FONT_12X20  = 11
     print("test succeed")
+    signal.signal(signal.SIGINT, signal_handler)
+    target2 = threading.Thread(target=April_start_detect)
+    target2.start()
     # while True:
     #     adc_value = up.ADC_Get_All_Channle()
     #     io_data = get_io_data(up)
@@ -271,18 +282,44 @@ if __name__ == "__main__":
         up.LCD_PutString(0, 20, f'{adc_value}')
 
         up.LCD_Refresh()
-        # while adc_value[0] < 270 and adc_value[1] < 270:  # 185,222 #315,306
-        #     adc_value = up.ADC_Get_All_Channle()
-        #     back()
-        #     up.CDS_SetAngle(3, 600, 500)
-        #     up.CDS_SetAngle(4, 300, 500)
+        while adc_value[0] < 270 and adc_value[1] < 270:  # 185,222 #315,306
+            adc_value = up.ADC_Get_All_Channle()
+            back()
+            up.CDS_SetAngle(3, 600, 500)
+            up.CDS_SetAngle(4, 300, 500)
 
         up.CDS_SetAngle(3, 700, 500)  # 最低
         up.CDS_SetAngle(4, 200, 500)  # 最低
 
         # 0、1 正前方红外   3、4斜向下   6、7左右
         if io_data[3] == 0 and io_data[4] == 0:
-            straight()
+            if tag_flag:
+                if tag_safe:
+                    April_tag_move()
+                else:
+                    April_tag_escape()
+            else:
+                if io_data[0] == 0 and io_data[1] == 0:
+                    straight()
+                elif io_data[0] == 1 and io_data[1] == 0:
+                    right_low()
+                elif io_data[0] == 0 and io_data[1] == 1:
+                    left_low()
+                else:
+                    if io_data[6] == 1 and io_data[7] == 0:
+                        while not tag_flag == 0 or io_data[0] == 0 and io_data[1] == 0:
+                            right()
+                            io_data = get_io_data(up)
+                    elif io_data[6] == 0 and io_data[7] == 1:
+                        while not tag_flag == 0 or io_data[0] == 0 and io_data[1] == 0:
+                            left()
+                            io_data = get_io_data(up)
+                    elif io_data[6] == 0 and io_data[7] == 0:
+                        while not tag_flag == 0 or io_data[0] == 0 and io_data[1] == 0:
+                            left()
+                            io_data = get_io_data(up)
+                    else:
+                        straight()
         elif io_data[3] == 1 and io_data[4] == 0:
             right()
         elif io_data[3] == 0 and io_data[4] == 1:
