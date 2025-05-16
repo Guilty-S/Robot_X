@@ -166,15 +166,36 @@ def April_start_detect():
 
 
 def April_tag_move():
-    if mid < 160 - tag_width / 2:
-        left_low_low()
-        print("左")
-    elif mid > 160 + tag_width / 2 :
-        right_low_low()
-        print("右")
+    if distance < 80:
+        if mid < 160 - tag_width / 4:
+            left_low_low()
+            print("左")
+        elif mid > 160 + tag_width / 4:
+            right_low_low()
+            print("右")
+        else:
+            straight()
+            print("前进")
+    elif distance < 160 and distance >= 80:
+        if mid < 160 - tag_width / 2:
+            left_low()
+            print("左")
+        elif mid > 160 + tag_width / 2:
+            right_low()
+            print("右")
+        else:
+            straight()
+            print("前进")
     else:
-        straight()
-        print("前进")
+        if mid < 160 - tag_width * 2:
+            left()
+            print("左")
+        elif mid > 160 + tag_width * 2:
+            right()
+            print("右")
+        else:
+            straight_fast()
+            print("前进")
 
 
 def April_tag_escape():
@@ -197,6 +218,11 @@ def signal_handler(handler_signal, handler_frame):
 def straight():
     up.CDS_SetSpeed(1, 500)
     up.CDS_SetSpeed(2, 500)
+
+
+def straight_fast():
+    up.CDS_SetSpeed(1, 900)
+    up.CDS_SetSpeed(2, 900)
 
 
 def back():
@@ -285,7 +311,7 @@ if __name__ == "__main__":
         up.LCD_Refresh()
         while adc_value[0] < 220 and adc_value[1] < 250:  # 185,222 #315,306
             adc_value = up.ADC_Get_All_Channle()
-        #     # back()
+            #     # back()
             stop()
             # up.CDS_SetAngle(3, 600, 500)
             # up.CDS_SetAngle(4, 300, 500)
@@ -304,9 +330,9 @@ if __name__ == "__main__":
                 if io_data[0] == 0 and io_data[1] == 0:
                     straight()
                 elif io_data[0] == 1 and io_data[1] == 0:
-                    right_low_low()
+                    right_low()
                 elif io_data[0] == 0 and io_data[1] == 1:
-                    left_low_low()
+                    left_low()
                 else:
                     if io_data[6] == 1 and io_data[7] == 0:
                         while not tag_flag == 0 or io_data[0] == 0 and io_data[1] == 0:
@@ -323,9 +349,9 @@ if __name__ == "__main__":
                     else:
                         straight()
         elif io_data[3] == 1 and io_data[4] == 0:
-            right_low()
+            right_low_low()
         elif io_data[3] == 0 and io_data[4] == 1:
-            left_low()
+            left_low_low()
         else:
             back()
             time.sleep(0.1)
