@@ -166,20 +166,27 @@ def April_start_detect():
 
 
 def April_tag_move():
-    if mid < 160 - tag_width / 4:
-        left_low_low()
-        # print("左")
-    elif mid > 160 + tag_width / 4:
-        right_low_low()
-        # print("右")
+    if distance > 200:
+        if mid < 160 - tag_width:
+            left_low_low()
+            # print("左")
+        elif mid > 160 + tag_width:
+            right_low_low()
+            # print("右")
+        else:
+            straight()
+            # print("前进")
     else:
-        straight()
-        # print("前进")
-
+        if mid < 160 - tag_width / 6:
+            left_low_low()
+        elif mid > 160 + tag_width / 6:
+            right_low_low()
+        else:
+            straight()
 
 
 def April_tag_escape():
-    if distance < 200:
+    if distance < 100:
         if mid < 160:
             right()
         else:
@@ -264,9 +271,9 @@ if __name__ == "__main__":
     # FONT_12X16  = 10
     # FONT_12X20  = 11
     print("test succeed")
-    signal.signal(signal.SIGINT, signal_handler)
-    target2 = threading.Thread(target=April_start_detect)
-    target2.start()
+    # signal.signal(signal.SIGINT, signal_handler)
+    # target2 = threading.Thread(target=April_start_detect)
+    # target2.start()
     # while True:
     #     adc_value = up.ADC_Get_All_Channle()
     #     io_data = get_io_data(up)
@@ -285,42 +292,44 @@ if __name__ == "__main__":
         up.LCD_PutString(0, 20, f'{adc_value}')
 
         up.LCD_Refresh()
-        while adc_value[0] < 220 and adc_value[1] < 250:  # 185,222 #315,306
+        while adc_value[0] <250 and  adc_value[1] < 290:  # 185,222 #315,306
             adc_value = up.ADC_Get_All_Channle()
-            #     # back()
-            stop()
-            # up.CDS_SetAngle(3, 600, 500)
-            # up.CDS_SetAngle(4, 300, 500)
+            # back()
+            # stop()
+            up.CDS_SetAngle(3, 550, 500)
+            up.CDS_SetAngle(4, 350, 500)
+            up.LCD_SetFont(up.FONT_12X20)
+            up.LCD_SetForeColor(up.COLOR_YELLOW)
+            up.LCD_PutString(0, 20, f'{adc_value}')
 
-        up.CDS_SetAngle(3, 700, 500)  # 最低
-        up.CDS_SetAngle(4, 200, 500)  # 最低
+        up.CDS_SetAngle(3, 700, 500)
+        up.CDS_SetAngle(4, 200, 500)
 
         # 0、1 正前方红外   3、4斜向下   6、7左右
-        if io_data[3] == 0 and io_data[4] == 0:
-            if tag_flag:
-                if tag_safe:
-                    April_tag_move()
-                else:
-                    April_tag_escape()
-            else:
-                if io_data[0] == 0 and io_data[1] == 0:
-                    straight()
-                elif io_data[0] == 1 and io_data[1] == 0:
-                    right_low()
-                elif io_data[0] == 0 and io_data[1] == 1:
-                    left_low()
-                else:
-                    straight()
-        elif io_data[3] == 1 and io_data[4] == 0:
-            right_low()
-        elif io_data[3] == 0 and io_data[4] == 1:
-            left_low()
-        else:
-            back()
-            time.sleep(0.1)
-            right()
+        # if io_data[3] == 0 and io_data[4] == 0:
+        #     if tag_flag:
+        #         if tag_safe:
+        #             April_tag_move()
+        #         else:
+        #             April_tag_escape()
+        #     else:
+        #         if io_data[0] == 0 and io_data[1] == 0:
+        #             straight()
+        #         elif io_data[0] == 1 and io_data[1] == 0:
+        #             right()
+        #         elif io_data[0] == 0 and io_data[1] == 1:
+        #             left()
+        #         else:
+        #             straight()
+        # elif io_data[3] == 1 and io_data[4] == 0:
+        #     right_low()
+        # elif io_data[3] == 0 and io_data[4] == 1:
+        #     left_low()
+        # else:
+        #     back()
+        #     time.sleep(0.1)
+        #     right()
         # print(f'adc{adc_value}')
-
         # if IO_3 == 0 and IO_4 == 0:
         #     if IO_0 == 0 and IO_1 == 1:
         #         left_low()
