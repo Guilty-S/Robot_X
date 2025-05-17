@@ -199,8 +199,8 @@ def signal_handler(handler_signal, handler_frame):
 
 
 def straight():
-    up.CDS_SetSpeed(1, 500)
-    up.CDS_SetSpeed(2, 570)
+    up.CDS_SetSpeed(1, 450)
+    up.CDS_SetSpeed(2, 500)
 
 
 def straight_fast():
@@ -271,9 +271,9 @@ if __name__ == "__main__":
     # FONT_12X16  = 10
     # FONT_12X20  = 11
     print("test succeed")
-    # signal.signal(signal.SIGINT, signal_handler)
-    # target2 = threading.Thread(target=April_start_detect)
-    # target2.start()
+    signal.signal(signal.SIGINT, signal_handler)
+    target2 = threading.Thread(target=April_start_detect)
+    target2.start()
     # while True:
     #     adc_value = up.ADC_Get_All_Channle()
     #     io_data = get_io_data(up)
@@ -292,69 +292,34 @@ if __name__ == "__main__":
         up.LCD_PutString(0, 20, f'{adc_value}')
 
         up.LCD_Refresh()
-        while adc_value[0] <250 and  adc_value[1] < 290:  # 185,222 #315,306
-            adc_value = up.ADC_Get_All_Channle()
-            # back()
-            # stop()
-            up.CDS_SetAngle(3, 550, 500)
-            up.CDS_SetAngle(4, 350, 500)
-            up.LCD_SetFont(up.FONT_12X20)
-            up.LCD_SetForeColor(up.COLOR_YELLOW)
-            up.LCD_PutString(0, 20, f'{adc_value}')
+        # while adc_value[0] <250 and  adc_value[1] < 290:  # 185,222 #315,306
+        #     adc_value = up.ADC_Get_All_Channle()
+        #     # back()
+        #     # stop()
+        #     up.CDS_SetAngle(3, 550, 500)
+        #     up.CDS_SetAngle(4, 350, 500)
+        #     up.LCD_SetFont(up.FONT_12X20)
+        #     up.LCD_SetForeColor(up.COLOR_YELLOW)
+        #     up.LCD_PutString(0, 20, f'{adc_value}')
 
         up.CDS_SetAngle(3, 700, 500)
         up.CDS_SetAngle(4, 200, 500)
 
         # 0、1 正前方红外   3、4斜向下   6、7左右
-        # if io_data[3] == 0 and io_data[4] == 0:
-        #     if tag_flag:
-        #         if tag_safe:
-        #             April_tag_move()
-        #         else:
-        #             April_tag_escape()
-        #     else:
-        #         if io_data[0] == 0 and io_data[1] == 0:
-        #             straight()
-        #         elif io_data[0] == 1 and io_data[1] == 0:
-        #             right()
-        #         elif io_data[0] == 0 and io_data[1] == 1:
-        #             left()
-        #         else:
-        #             straight()
-        # elif io_data[3] == 1 and io_data[4] == 0:
-        #     right_low()
-        # elif io_data[3] == 0 and io_data[4] == 1:
-        #     left_low()
-        # else:
-        #     back()
-        #     time.sleep(0.1)
-        #     right()
+        if io_data[3] == 0 and io_data[4] == 0:
+            if tag_flag:
+                if tag_safe:
+                    April_tag_move()
+                else:
+                    April_tag_escape()
+            else:
+                straight()
+        elif io_data[3] == 1 and io_data[4] == 0:
+            right_low()
+        elif io_data[3] == 0 and io_data[4] == 1:
+            left_low()
+        else:
+            back_low()
+            time.sleep(0.2)
+            right()
         # print(f'adc{adc_value}')
-        # if IO_3 == 0 and IO_4 == 0:
-        #     if IO_0 == 0 and IO_1 == 1:
-        #         left_low()
-        #     elif IO_0 == 1 and IO_1 == 0:
-        #         right_low()
-        #     elif IO_0 == 1 and IO_1 == 1:
-        #         if IO_6 == 0 and IO_7 == 1:
-        #             while not (io_data[0] == 0 and io_data[1] == 0):
-        #                 left_low()
-        #                 io_data = get_io_data(up)
-        #         elif IO_6 == 1 and IO_7 == 0:
-        #             while not (io_data[0] == 0 and io_data[1] == 0):
-        #                 right_low()
-        #                 io_data = get_io_data(up)
-        #         elif IO_6 == 0 and IO_7 == 0:
-        #             while not (io_data[0] == 0 and io_data[1] == 0):
-        #                 left_low()
-        #                 io_data = get_io_data(up)
-        #         else:
-        #             straight()
-        #     else:
-        #         straight()
-        # elif IO_3 == 1 and IO_4 == 0:
-        #     right_low()
-        # elif IO_3 == 0 and IO_4 == 1:
-        #     left_low()
-        # else:
-        #     back_low()
