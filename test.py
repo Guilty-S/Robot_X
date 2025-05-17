@@ -304,7 +304,8 @@ if __name__ == "__main__":
 
         up.CDS_SetAngle(3, 700, 500)
         up.CDS_SetAngle(4, 200, 500)
-
+        print(tag_flag)
+        print(io_data)
         # 0、1 正前方红外   3、4斜向下   6、7左右
         if io_data[3] == 0 and io_data[4] == 0:
             if tag_flag:
@@ -313,7 +314,17 @@ if __name__ == "__main__":
                 else:
                     April_tag_escape()
             else:
-                straight()
+                if io_data[6] == 1 and io_data[7] == 0:
+                    while tag_flag == 0:
+                        right_low_low()
+                if io_data[6] == 0 and io_data[7] == 1:
+                    while tag_flag == 0:
+                        left_low_low()
+                if io_data[6] == 0 and io_data[7] == 0:
+                    while tag_flag == 0:
+                        right_low_low()
+                else:
+                    straight()
         elif io_data[3] == 1 and io_data[4] == 0:
             right_low()
         elif io_data[3] == 0 and io_data[4] == 1:
