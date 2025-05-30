@@ -214,10 +214,10 @@ def straight_fast():
 
 
 def straight_if():
-    if adc_value[0] < 650 or adc_value[1] < 400:
-        straight_low()
-    else:
+    if adc_value[0] > 650 or adc_value[1] > 450:
         straight_fast()
+    else:
+        straight_low()
 
 
 def back():
@@ -241,8 +241,8 @@ def left():
 
 
 def left_low():
-    up.CDS_SetSpeed(1, 700)
-    up.CDS_SetSpeed(2, -700)
+    up.CDS_SetSpeed(1, 600)
+    up.CDS_SetSpeed(2, -900)
 
 
 
@@ -259,8 +259,8 @@ def right():
 
 def right_low():
 
-    up.CDS_SetSpeed(1, -700)
-    up.CDS_SetSpeed(2, 700)
+    up.CDS_SetSpeed(1, -900)
+    up.CDS_SetSpeed(2, 600)
 
 
 def right_low_low():
@@ -280,21 +280,21 @@ if __name__ == "__main__":
     io_data = []
     up.CDS_SetMode(1, 1)
     up.CDS_SetMode(2, 1)
-    up.CDS_SetMode(3, 0)  # 最低 650 最高 000 平放 610
-    up.CDS_SetMode(4, 0)  # 最低 90 最高 750 平放 150
+    up.CDS_SetMode(3, 0)  # 最低 600 平放 420  最高 140
+    up.CDS_SetMode(4, 0)  # 最低 140 平放 320  最高 600
     # FONT_8X14   = 8
     # FONT_10X16  = 9
     # FONT_12X16  = 10
     # FONT_12X20  = 11
     print("test succeed")
-    # signal.signal(signal.SIGINT, signal_handler)
+    signal.signal(signal.SIGINT, signal_handler)
     # target2 = threading.Thread(target=April_start_detect)
     # target2.start()
-    # # while True:
-    # #     adc_value = up.ADC_Get_All_Channle()
-    # #     io_data = get_io_data(up)
-    # #     if io_data[6] == 0 and io_data[7] == 0:
-    # #         break
+    # while True:
+    #     adc_value = up.ADC_Get_All_Channle()
+    #     io_data = get_io_data(up)
+    #     if io_data[6] == 0 and io_data[7] == 0:
+    #         break
     while True:
         adc_value = up.ADC_Get_All_Channle()
         io_data = get_io_data(up)
@@ -308,19 +308,25 @@ if __name__ == "__main__":
         up.LCD_PutString(0, 20, f'{adc_value}')
 
         up.LCD_Refresh()
-        while adc_value[0] <390 and  adc_value[1] < 270:  # 185,222 #315,306
-            adc_value = up.ADC_Get_All_Channle()
-            back()
-            # stop()
-            up.CDS_SetAngle(3, 400, 1000)
-            up.CDS_SetAngle(4, 340, 1000)
-            up.LCD_SetFont(up.FONT_12X20)
-            up.LCD_SetForeColor(up.COLOR_YELLOW)
-            up.LCD_PutString(0, 20, f'{adc_value}')
+        # while adc_value[0] <390 and  adc_value[1] < 270:  # 185,222 #315,306
+        #     adc_value = up.ADC_Get_All_Channle()
+        #     back()
+        #     # stop()
+        #     up.CDS_SetAngle(3, 400, 1000)
+        #     up.CDS_SetAngle(4, 340, 1000)
+        #     up.LCD_SetFont(up.FONT_12X20)
+        #     up.LCD_SetForeColor(up.COLOR_YELLOW)
+        #     up.LCD_PutString(0, 20, f'{adc_value}')
 
         #
-        up.CDS_SetAngle(3, 610, 1000)
-        up.CDS_SetAngle(4, 150, 1000)
+        up.CDS_SetAngle(3, 600, 1000)#最低
+        up.CDS_SetAngle(4, 140, 1000)
+        # up.CDS_SetAngle(3, 140, 1000)#最高
+        # up.CDS_SetAngle(4, 600, 1000)
+        # up.CDS_SetAngle(3, 420, 1000)#最高
+        # up.CDS_SetAngle(4, 320, 1000)
+
+
         # print(tag_flag)
         # print(io_data)
         # 0、1 正前方红外   3、4斜向下   6、7左右
@@ -343,11 +349,9 @@ if __name__ == "__main__":
                 # else:
                 straight_if()
         elif io_data[3] == 1 and io_data[4] == 0:
-            right()
+            right_low()
         elif io_data[3] == 0 and io_data[4] == 1:
-            left()
+            left_low()
         else:
             back_low()
-            time.sleep(0.2)
-            right()
-        # print(f'adc{adc_value}')
+        # # print(f'adc{adc_value}')
