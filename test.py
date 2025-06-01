@@ -21,6 +21,54 @@ flag = 0
 cnt = 0
 
 
+class PIDController:
+    def __init__(self, Kp, Ki, Kd, gkd, out_limit):
+        """
+        初始化PID控制器。
+
+        参数:
+        Kp -- 比例增益
+        Ki -- 积分增益
+        Kd -- 微分增益
+        gkd -- 微分滤波系数
+        out_limit -- 输出限制
+        """
+        self.Kp = Kp
+        self.Ki = Ki
+        self.Kd = Kd
+        self.gkd = gkd
+        self.out_limit = out_limit
+
+        self.err = 0.0
+        self.err_last = 0.0
+        self.output = 0.0
+        self.setpoint = 0.0
+        self.current_value = 0.0
+
+    def calculate(self, target, current):
+        """
+        计算PID输出。
+
+        参数:
+        target -- 目标值
+        current -- 当前值
+
+        返回:
+        计算得到的PID输出
+        """
+        self.err = target - current
+        self.output = self.Kp * self.err + self.Kd * (self.err - self.err_last)
+        self.err_last = self.err
+
+        # 输出限幅
+        if self.output > self.out_limit:
+            self.output = self.out_limit
+        elif self.output < -self.out_limit:
+            self.output = -self.out_limit
+
+        return self.output
+
+
 class ApriltagDetect:
     def __init__(self):
         self.target_id = 0
@@ -231,25 +279,31 @@ def April_tag_move():
         else:
             straight_if()
             # print("前进")
-    else:
-        if mid < 160 - tag_width / 6:
-            left_low_low()
-        elif mid > 160 + tag_width / 6:
-            right_low_low()
-        else:
-            straight_if()
 
 
 def April_tag_move_pid():
-    April_tag_move()
+    pid = PIDController(Kp=5.0, Ki=0, Kd=0.5, gkd=0.0, out_limit=1000.0)
+    control_output = pid.calculate(160, mid)#kp 0~10 kd
+    if mid < 160 - tag_width:
+        up.CDS_SetSpeed(1, control_output)
+        up.CDS_SetSpeed(2, -control_output)
+    elif mid > 160 + tag_width:
+        up.CDS_SetSpeed(1, control_output)
+        up.CDS_SetSpeed(2, -control_output)
+    else:
+        straight_if()
+
+
 
 
 def April_tag_escape():
     if distance < 200:
         if mid < 160:
             right()
+            time.sleep(0.2)
         else:
             left()
+            time.sleep(0.2)
 
 
 def signal_handler(handler_signal, handler_frame):
@@ -258,7 +312,7 @@ def signal_handler(handler_signal, handler_frame):
 
 
 def straight_low():
-    up.CDS_SetSpeed(1, 500)
+    up.CDS_SetSpeed(1, 550)
     up.CDS_SetSpeed(2, 550)
 
 
@@ -268,8 +322,8 @@ def straight():
 
 
 def straight_fast():
-    up.CDS_SetSpeed(1, 750)
-    up.CDS_SetSpeed(2, 750)
+    up.CDS_SetSpeed(1, 700)
+    up.CDS_SetSpeed(2, 700)
 
 
 def straight_if():
@@ -309,8 +363,8 @@ def left_x():
 
 
 def left_low():
-    up.CDS_SetSpeed(1, -600)
-    up.CDS_SetSpeed(2, 600)
+    up.CDS_SetSpeed(1, 600)
+    up.CDS_SetSpeed(2, -600)
 
 
 def left_low_low():
@@ -329,8 +383,8 @@ def right_x():
 
 
 def right_low():
-    up.CDS_SetSpeed(1, 600)
-    up.CDS_SetSpeed(2, -600)
+    up.CDS_SetSpeed(1, -600)
+    up.CDS_SetSpeed(2, 600)
 
 
 def right_low_low():
@@ -363,10 +417,13 @@ if __name__ == "__main__":
     #     io_data = get_io_data(up)
     #     if io_data[6] == 0 and io_data[7] == 0:
     #         break
-    tai_flag = 0
+    tai_flag = 1
     tai_flag_time = 0
     down = 0
     up_flag = 0
+    t=0
+    # 初始化PID控制器
+    # 在控制循环中计算输出
     while True:
         adc_value = up.ADC_Get_All_Channle()
         io_data = get_io_data(up)
@@ -381,17 +438,15 @@ if __name__ == "__main__":
 
         up.LCD_Refresh()
 
-        if adc_value[0] + adc_value[1] + adc_value[2] < 920:  # 185,222 #315,306
+        if adc_value[0] + adc_value[1] + adc_value[2] < 940:  # 185,222 #315,306
             down = 1
         else:
             down = 0
         # print(flag)
-        up.CDS_SetAngle(3, 600, 500)  # 最低
-        up.CDS_SetAngle(4, 140, 500)
-        # up.CDS_SetAngle(3, 140, 1000)#最高
-        # up.CDS_SetAngle(4, 600, 1000)
-        # up.CDS_SetAngle(3, 420, 1000)#平放
-        # up.CDS_SetAngle(4, 320, 1000)
+        #up.CDS_SetAngle(3, 630, 500)  # 最低
+        #up.CDS_SetAngle(4, 130, 500)
+        # up.CDS_SetAngle(3, 200, 700)#最高
+        # up.CDS_SetAngle(4, 540, 700)
 
         # print(tag_flag)
         # print(io_data)
@@ -401,30 +456,32 @@ if __name__ == "__main__":
         # print(up_flag)
         if down:
             if tai_flag:
-                up.CDS_SetAngle(3, 140, 1000)  # 最高
-                up.CDS_SetAngle(4, 600, 1000)
+                up.CDS_SetAngle(3, 200, 700)#最高
+                up.CDS_SetAngle(4, 540, 700)
                 time.sleep(2)
                 tai_flag = 0
-            else:
-                tai_flag_time += 1
-                if tai_flag_time >= 30:
-                    tai_flag_time = 0
-                    tai_flag = 1
+            # else:
+            #     tai_flag_time += 1
+            #     if tai_flag_time >= 30:
+            #         tai_flag_time = 0
+            #         tai_flag = 1
             if up_flag:
-                back()
+                back_low()
+                time.sleep(0.2)
+                up.CDS_SetAngle(3, 630, 500)  # 最低
+                up.CDS_SetAngle(4, 130, 500)
                 time.sleep(1)
-                up.CDS_SetAngle(3, 600, 500)  # 最低
-                up.CDS_SetAngle(4, 140, 500)
-                time.sleep(0.3)
                 up_flag = 0
             else:
-                up.CDS_SetAngle(3, 140, 1000)  # 最高
-                up.CDS_SetAngle(4, 600, 1000)
+                up.CDS_SetAngle(3, 200, 700)#最高
+                up.CDS_SetAngle(4, 540, 700)
                 if io_data[0] == 0 and io_data[1] == 0:
                     up_flag = 1
                 else:
-                    right()
+                    right_low()
         else:
+            up.CDS_SetAngle(3, 630, 500)  # 最低
+            up.CDS_SetAngle(4, 130, 500)
             tai_flag = 1
             if io_data[3] == 0 and io_data[4] == 0:
                 if tag_flag:
@@ -436,22 +493,34 @@ if __name__ == "__main__":
                     if io_data[0] == 0 and io_data[1] == 0:
                         straight_if()
                     elif io_data[0] == 1 and io_data[1] == 0:
-                        right()
+                        right_low()
                     elif io_data[0] == 0 and io_data[1] == 1:
-                        left()
+                        left_low()
                     else:
                         if io_data[6] == 1 and io_data[7] == 0:
-                            while not io_data[0] == 0 and io_data[1] == 0:
+                            while True:
+                                t+=1
                                 io_data = get_io_data(up)
-                                right()
+                                right_low()
+                                if io_data[0] == 0 and io_data[1] == 0 or t>=50:
+                                    t=0
+                                    break
                         elif io_data[6] == 0 and io_data[7] == 1:
-                            while not io_data[0] == 0 and io_data[1] == 0:
+                            while True:
+                                t+=1
                                 io_data = get_io_data(up)
-                                left()
-                        elif io_data[6] == 0 and io_data[7] == 0:
-                            while not io_data[0] == 0 and io_data[1] == 0:
+                                left_low()
+                                if io_data[0] == 0 and io_data[1] == 0 or t>=50:
+                                    t=0
+                                    break
+                        elif io_data[6] == 0 and io_data[7] == 0 :
+                            while True:
+                                t+=1
                                 io_data = get_io_data(up)
-                                right()
+                                right_low()
+                                if io_data[0] == 0 and io_data[1] == 0 or t>=50:
+                                    t=0
+                                    break
                         else:
                             straight_if()
             elif io_data[3] == 1 and io_data[4] == 0:
