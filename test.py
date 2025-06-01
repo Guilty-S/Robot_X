@@ -21,71 +21,12 @@ flag = 0
 cnt = 0
 
 
-# class PIDController:
-#     def __init__(self, Kp, Ki, Kd, gkd, out_limit):
-#         """
-#         初始化PID控制器。
-#
-#         参数:
-#         Kp -- 比例增益
-#         Ki -- 积分增益
-#         Kd -- 微分增益
-#         gkd -- 微分滤波系数
-#         out_limit -- 输出限制
-#         """
-#         self.Kp = Kp
-#         self.Ki = Ki
-#         self.Kd = Kd
-#         self.gkd = gkd
-#         self.out_limit = out_limit
-#
-#         self.err = 0.0
-#         self.err_last = 0.0
-#         self.output = 0.0
-#         self.setpoint = 0.0
-#         self.current_value = 0.0
-#
-#     def calculate(self, target, current):
-#         """
-#         计算PID输出。
-#
-#         参数:
-#         target -- 目标值
-#         current -- 当前值
-#
-#         返回:
-#         计算得到的PID输出
-#         """
-#         self.err = target - current
-#         self.output = self.Kp * self.err + self.Kd * (self.err - self.err_last)
-#         self.err_last = self.err
-#
-#         # 输出限幅
-#         if self.output > self.out_limit:
-#             self.output = self.out_limit
-#         elif self.output < -self.out_limit:
-#             self.output = -self.out_limit
-#
-#         return self.output
-#
-#
-# # 初始化PID控制器
-# pid = PIDController(Kp=1.0, Ki=0.1, Kd=0.05, gkd=0.0, out_limit=100.0)
-#
-# # 在控制循环中计算输出
-# current_value = 50.0  # 当前测量值
-# target_value = 100.0  # 目标值
-# control_output = pid.calculate(target_value, current_value)
-#
-# print(f"控制输出: {control_output}")
-
-
 class ApriltagDetect:
     def __init__(self):
         self.target_id = 0
         self.at_detector = apriltag.Detector(apriltag.DetectorOptions(families='tag36h11 tag25h9'))
 
-    def update_frame(self, frame):#敌方优先
+    def update_frame(self, frame):  # 敌方优先
         h0 = 0  # shi fou you 0 ma
         h1 = 0  # shi fou you 1 ma
         h2 = 0
@@ -140,7 +81,7 @@ class ApriltagDetect:
         else:
             tag_flag = 0
 
-    def update_frame_new(self, frame):#中立优先
+    def update_frame_new(self, frame):  # 中立优先
         h0 = 0  # shi fou you 0 ma
         h1 = 0  # shi fou you 1 ma
         h2 = 0
@@ -445,8 +386,8 @@ if __name__ == "__main__":
         else:
             down = 0
         # print(flag)
-        # up.CDS_SetAngle(3, 600, 500)  # 最低
-        # up.CDS_SetAngle(4, 140, 500)
+        up.CDS_SetAngle(3, 600, 500)  # 最低
+        up.CDS_SetAngle(4, 140, 500)
         # up.CDS_SetAngle(3, 140, 1000)#最高
         # up.CDS_SetAngle(4, 600, 1000)
         # up.CDS_SetAngle(3, 420, 1000)#平放
@@ -459,64 +400,70 @@ if __name__ == "__main__":
         # #     adc_value_min=adc_value[0]+adc_value[1]+adc_value[2]
         # print(up_flag)
         if down:
-            up.CDS_SetAngle(3, 140, 1000)#最高
-            up.CDS_SetAngle(4, 600, 1000)
-            # if tai_flag:
-            #     up.CDS_SetAngle(3, 140, 1000)  # 最高
-            #     up.CDS_SetAngle(4, 600, 1000)
-            #     time.sleep(2)
-            #     tai_flag = 0
-            # else:
-            #     tai_flag_time += 1
-            #     if tai_flag_time >= 30:
-            #         tai_flag_time = 0
-            #         tai_flag = 1
-            # if up_flag:
-            #     back()
-            #     time.sleep(1)
-            #     up.CDS_SetAngle(3, 600, 500)  # 最低
-            #     up.CDS_SetAngle(4, 140, 500)
-            #     time.sleep(0.3)
-            #     up_flag = 0
-            # else:
-            #     up.CDS_SetAngle(3, 140, 1000)  # 最高
-            #     up.CDS_SetAngle(4, 600, 1000)
-            #     if io_data[0] == 0 and io_data[1] == 0:
-            #         up_flag = 1
-            #     else:
-            #         right()
+            if tai_flag:
+                up.CDS_SetAngle(3, 140, 1000)  # 最高
+                up.CDS_SetAngle(4, 600, 1000)
+                time.sleep(2)
+                tai_flag = 0
+            else:
+                tai_flag_time += 1
+                if tai_flag_time >= 30:
+                    tai_flag_time = 0
+                    tai_flag = 1
+            if up_flag:
+                back()
+                time.sleep(1)
+                up.CDS_SetAngle(3, 600, 500)  # 最低
+                up.CDS_SetAngle(4, 140, 500)
+                time.sleep(0.3)
+                up_flag = 0
+            else:
+                up.CDS_SetAngle(3, 140, 1000)  # 最高
+                up.CDS_SetAngle(4, 600, 1000)
+                if io_data[0] == 0 and io_data[1] == 0:
+                    up_flag = 1
+                else:
+                    right()
         else:
-            up.CDS_SetAngle(3, 600, 500)  # 最低
-            up.CDS_SetAngle(4, 140, 500)
-            # tai_flag = 1
-            # if io_data[3] == 0 and io_data[4] == 0:
-            #     if tag_flag:
-            #         if tag_safe:
-            #             April_tag_move()
-            #         else:
-            #             April_tag_escape()
-            #     else:
-            #         # if io_data[6] == 1 and io_data[7] == 0:
-            #         #     right()
-            #         #     time.sleep(0.3)
-            #         # elif io_data[6] == 0 and io_data[7] == 1:
-            #         #     left()
-            #         #     time.sleep(0.3)
-            #         # elif io_data[6] == 0 and io_data[7] == 0:
-            #         #     right()
-            #         #     time.sleep(0.3)
-            #         # else:
-            #         straight_if()
-            # elif io_data[3] == 1 and io_data[4] == 0:
-            #     back_low()
-            #     time.sleep(0.02)
-            #     right_x()
-            # elif io_data[3] == 0 and io_data[4] == 1:
-            #     back_low()
-            #     time.sleep(0.02)
-            #     left_x()
-            # else:
-            #     back_low()
-            #     time.sleep(0.2)
+            tai_flag = 1
+            if io_data[3] == 0 and io_data[4] == 0:
+                if tag_flag:
+                    if tag_safe:
+                        April_tag_move()
+                    else:
+                        April_tag_escape()
+                else:
+                    if io_data[0] == 0 and io_data[1] == 0:
+                        straight_if()
+                    elif io_data[0] == 1 and io_data[1] == 0:
+                        right()
+                    elif io_data[0] == 0 and io_data[1] == 1:
+                        left()
+                    else:
+                        if io_data[6] == 1 and io_data[7] == 0:
+                            while not io_data[0] == 0 and io_data[1] == 0:
+                                io_data = get_io_data(up)
+                                right()
+                        elif io_data[6] == 0 and io_data[7] == 1:
+                            while not io_data[0] == 0 and io_data[1] == 0:
+                                io_data = get_io_data(up)
+                                left()
+                        elif io_data[6] == 0 and io_data[7] == 0:
+                            while not io_data[0] == 0 and io_data[1] == 0:
+                                io_data = get_io_data(up)
+                                right()
+                        else:
+                            straight_if()
+            elif io_data[3] == 1 and io_data[4] == 0:
+                back_low()
+                time.sleep(0.02)
+                right_x()
+            elif io_data[3] == 0 and io_data[4] == 1:
+                back_low()
+                time.sleep(0.02)
+                left_x()
+            else:
+                back_low()
+                time.sleep(0.1)
             # time.sleep(0.5)
         # print(f'adc{adc_value}')
