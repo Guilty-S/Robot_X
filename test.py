@@ -1,3 +1,5 @@
+from xml.sax.saxutils import escape
+
 import cv2
 import subprocess
 import uptech
@@ -283,7 +285,7 @@ def April_tag_move():
 
 def April_tag_move_pid():
     pid = PIDController(Kp=5.0, Ki=0, Kd=0.5, gkd=0.0, out_limit=1000.0)
-    control_output = pid.calculate(160, mid)#kp 0~10 kd
+    control_output = pid.calculate(160, mid)  # kp 0~10 kd
     if mid < 160 - tag_width:
         up.CDS_SetSpeed(1, control_output)
         up.CDS_SetSpeed(2, -control_output)
@@ -292,8 +294,6 @@ def April_tag_move_pid():
         up.CDS_SetSpeed(2, -control_output)
     else:
         straight_if()
-
-
 
 
 def April_tag_escape():
@@ -312,8 +312,8 @@ def signal_handler(handler_signal, handler_frame):
 
 
 def straight_low():
-    up.CDS_SetSpeed(1, 550)
-    up.CDS_SetSpeed(2, 550)
+    up.CDS_SetSpeed(1, 500)
+    up.CDS_SetSpeed(2, 500)
 
 
 def straight():
@@ -345,6 +345,11 @@ def back():
 def back_low():
     up.CDS_SetSpeed(1, -500)
     up.CDS_SetSpeed(2, -500)
+
+
+def back_up():
+    up.CDS_SetSpeed(1, -600)
+    up.CDS_SetSpeed(2, -600)
 
 
 def stop():
@@ -419,9 +424,11 @@ if __name__ == "__main__":
     #         break
     tai_flag = 1
     tai_flag_time = 0
+    escape_flag = 0
+    escape_time = 20
     down = 0
     up_flag = 0
-    t=0
+    t = 0
     # 初始化PID控制器
     # 在控制循环中计算输出
     while True:
@@ -438,13 +445,13 @@ if __name__ == "__main__":
 
         up.LCD_Refresh()
 
-        if adc_value[0] + adc_value[1] + adc_value[2] < 940:  # 185,222 #315,306
+        if adc_value[0] + adc_value[1] + adc_value[2] < 845:  # 185,222 #315,306
             down = 1
         else:
             down = 0
         # print(flag)
-        #up.CDS_SetAngle(3, 630, 500)  # 最低
-        #up.CDS_SetAngle(4, 130, 500)
+        # up.CDS_SetAngle(3, 630, 500)  # 最低
+        # up.CDS_SetAngle(4, 130, 500)
         # up.CDS_SetAngle(3, 200, 700)#最高
         # up.CDS_SetAngle(4, 540, 700)
 
@@ -454,26 +461,31 @@ if __name__ == "__main__":
         # if adc_value_min<adc_value[0]+adc_value[1]+adc_value[2]:#846
         # #     adc_value_min=adc_value[0]+adc_value[1]+adc_value[2]
         # print(up_flag)
+        if escape_flag:
+            escape_time -= 1
+            if escape_time <= 0:
+                escape_time = 20
+                escape_flag = 0
         if down:
             if tai_flag:
-                up.CDS_SetAngle(3, 200, 700)#最高
+                up.CDS_SetAngle(3, 200, 700)  # 最高
                 up.CDS_SetAngle(4, 540, 700)
                 time.sleep(2)
                 tai_flag = 0
-            # else:
-            #     tai_flag_time += 1
-            #     if tai_flag_time >= 30:
-            #         tai_flag_time = 0
-            #         tai_flag = 1
+            else:
+                tai_flag_time += 1
+                if tai_flag_time >= 30:
+                    tai_flag_time = 0
+                    tai_flag = 1
             if up_flag:
                 back_low()
-                time.sleep(0.2)
+                time.sleep(0.3)
                 up.CDS_SetAngle(3, 630, 500)  # 最低
                 up.CDS_SetAngle(4, 130, 500)
-                time.sleep(1)
+                time.sleep(1.5)
                 up_flag = 0
             else:
-                up.CDS_SetAngle(3, 200, 700)#最高
+                up.CDS_SetAngle(3, 200, 700)  # 最高
                 up.CDS_SetAngle(4, 540, 700)
                 if io_data[0] == 0 and io_data[1] == 0:
                     up_flag = 1
@@ -489,6 +501,7 @@ if __name__ == "__main__":
                         April_tag_move()
                     else:
                         April_tag_escape()
+                        escape_flag = 1
                 else:
                     if io_data[0] == 0 and io_data[1] == 0:
                         straight_if()
@@ -497,29 +510,29 @@ if __name__ == "__main__":
                     elif io_data[0] == 0 and io_data[1] == 1:
                         left_low()
                     else:
-                        if io_data[6] == 1 and io_data[7] == 0:
+                        if io_data[6] == 1 and io_data[7] == 0 and escape_flag == 0:
                             while True:
-                                t+=1
+                                t += 1
                                 io_data = get_io_data(up)
                                 right_low()
-                                if io_data[0] == 0 and io_data[1] == 0 or t>=50:
-                                    t=0
+                                if io_data[0] == 0 and io_data[1] == 0 or t >= 800:
+                                    t = 0
                                     break
-                        elif io_data[6] == 0 and io_data[7] == 1:
+                        elif io_data[6] == 0 and io_data[7] == 1 and escape_flag == 0:
                             while True:
-                                t+=1
+                                t += 1
                                 io_data = get_io_data(up)
                                 left_low()
-                                if io_data[0] == 0 and io_data[1] == 0 or t>=50:
-                                    t=0
+                                if io_data[0] == 0 and io_data[1] == 0 or t >= 800:
+                                    t = 0
                                     break
-                        elif io_data[6] == 0 and io_data[7] == 0 :
+                        elif io_data[6] == 0 and io_data[7] == 0 and escape_flag == 0:
                             while True:
-                                t+=1
+                                t += 1
                                 io_data = get_io_data(up)
                                 right_low()
-                                if io_data[0] == 0 and io_data[1] == 0 or t>=50:
-                                    t=0
+                                if io_data[0] == 0 and io_data[1] == 0 or t >= 800:
+                                    t = 0
                                     break
                         else:
                             straight_if()
@@ -534,5 +547,4 @@ if __name__ == "__main__":
             else:
                 back_low()
                 time.sleep(0.1)
-            # time.sleep(0.5)
         # print(f'adc{adc_value}')
