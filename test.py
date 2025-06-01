@@ -312,26 +312,28 @@ def signal_handler(handler_signal, handler_frame):
 
 
 def straight_low():
-    up.CDS_SetSpeed(1, 500)
-    up.CDS_SetSpeed(2, 500)
+    up.CDS_SetSpeed(1, 470)
+    up.CDS_SetSpeed(2, 470)
 
 
 def straight():
-    up.CDS_SetSpeed(1, 550)
-    up.CDS_SetSpeed(2, 600)
+    up.CDS_SetSpeed(1, 650)
+    up.CDS_SetSpeed(2, 650)
 
 
 def straight_fast():
-    up.CDS_SetSpeed(1, 700)
-    up.CDS_SetSpeed(2, 700)
+    up.CDS_SetSpeed(1, 900)
+    up.CDS_SetSpeed(2, 900)
 
 
 def straight_if():
-    if adc_value[0] > 660 or adc_value[1] > 460:
+    if adc_value[0] + adc_value[1] > 1200:
         straight_fast()
+    elif adc_value[0] > 670 or adc_value[1] > 470:
+        straight()
     else:
         straight_low()
-    # if adc_value[0] > 480 and adc_value[1] > 460 or adc_value[0] > 360 and adc_value[1] > 660:
+    # if adc_value[0] > 660 or adc_value[1] > 460:
     #     straight_fast()
     # else:
     #     straight_low()
@@ -390,6 +392,11 @@ def right_x():
 def right_low():
     up.CDS_SetSpeed(1, -600)
     up.CDS_SetSpeed(2, 600)
+
+
+def right_up():
+    up.CDS_SetSpeed(1, -500)
+    up.CDS_SetSpeed(2, 500)
 
 
 def right_low_low():
@@ -478,7 +485,8 @@ if __name__ == "__main__":
                     tai_flag_time = 0
                     tai_flag = 1
             if up_flag:
-                back_low()
+                up.CDS_SetSpeed(1, -600)
+                up.CDS_SetSpeed(2, -600)
                 time.sleep(0.3)
                 up.CDS_SetAngle(3, 630, 500)  # 最低
                 up.CDS_SetAngle(4, 130, 500)
@@ -490,7 +498,8 @@ if __name__ == "__main__":
                 if io_data[0] == 0 and io_data[1] == 0:
                     up_flag = 1
                 else:
-                    right_low()
+                    up.CDS_SetSpeed(1, -470)
+                    up.CDS_SetSpeed(2, 470)
         else:
             up.CDS_SetAngle(3, 630, 500)  # 最低
             up.CDS_SetAngle(4, 130, 500)
@@ -498,7 +507,17 @@ if __name__ == "__main__":
             if io_data[3] == 0 and io_data[4] == 0:
                 if tag_flag:
                     if tag_safe:
-                        April_tag_move()
+                        if distance>100:
+                            April_tag_move()
+                        else:
+                            if io_data[0] == 0 and io_data[1] == 0:
+                                straight_if()
+                            elif io_data[0] == 1 and io_data[1] == 0:
+                                right_low()
+                            elif io_data[0] == 0 and io_data[1] == 1:
+                                left_low()
+                            else:
+                                straight_if()
                     else:
                         April_tag_escape()
                         escape_flag = 1
@@ -506,32 +525,44 @@ if __name__ == "__main__":
                     if io_data[0] == 0 and io_data[1] == 0:
                         straight_if()
                     elif io_data[0] == 1 and io_data[1] == 0:
-                        right_low()
+                        right_low_low()
                     elif io_data[0] == 0 and io_data[1] == 1:
-                        left_low()
+                        left_low_low()
                     else:
                         if io_data[6] == 1 and io_data[7] == 0 and escape_flag == 0:
                             while True:
                                 t += 1
+                                adc_value = up.ADC_Get_All_Channle()
                                 io_data = get_io_data(up)
                                 right_low()
-                                if io_data[0] == 0 and io_data[1] == 0 or t >= 800:
+                                if io_data[0] == 0 and io_data[1] == 0 or t >= 600:
+                                    t = 0
+                                    break
+                                if adc_value[0] + adc_value[1] + adc_value[2] < 860:
                                     t = 0
                                     break
                         elif io_data[6] == 0 and io_data[7] == 1 and escape_flag == 0:
                             while True:
                                 t += 1
+                                adc_value = up.ADC_Get_All_Channle()
                                 io_data = get_io_data(up)
                                 left_low()
-                                if io_data[0] == 0 and io_data[1] == 0 or t >= 800:
+                                if io_data[0] == 0 and io_data[1] == 0 or t >= 600:
+                                    t = 0
+                                    break
+                                if adc_value[0] + adc_value[1] + adc_value[2] < 860:
                                     t = 0
                                     break
                         elif io_data[6] == 0 and io_data[7] == 0 and escape_flag == 0:
                             while True:
                                 t += 1
+                                adc_value = up.ADC_Get_All_Channle()
                                 io_data = get_io_data(up)
                                 right_low()
-                                if io_data[0] == 0 and io_data[1] == 0 or t >= 800:
+                                if io_data[0] == 0 and io_data[1] == 0 or t >= 600:
+                                    t = 0
+                                    break
+                                if adc_value[0] + adc_value[1] + adc_value[2] < 860:
                                     t = 0
                                     break
                         else:
