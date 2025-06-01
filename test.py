@@ -26,7 +26,7 @@ class ApriltagDetect:
         self.target_id = 0
         self.at_detector = apriltag.Detector(apriltag.DetectorOptions(families='tag36h11 tag25h9'))
 
-    def update_frame(self, frame):
+    def update_frame(self, frame):#敌方优先
         h0 = 0  # shi fou you 0 ma
         h1 = 0  # shi fou you 1 ma
         h2 = 0
@@ -69,6 +69,61 @@ class ApriltagDetect:
                                     self.get_distance(tags[i].homography, 4300)):  # 冒泡排序
                                 index = i
                         elif tags[index].tag_id == zhong_li_kuai:
+                            index = i
+            if tags[index].tag_id == di_fang_kuai or tags[index].tag_id == zhong_li_kuai:  # 冒泡后如果最近的id是中立或敌方
+                tag_safe = 1
+            else:  # 冒泡后如果的id是炸弹块(侧面证明了没有检测到敌方和中立)
+                tag_safe = 0
+            distance = int(self.get_distance(tags[index].homography, 4300))
+            mid = tuple(tags[index].corners[0].astype(int))[0] / 2 + \
+                  tuple(tags[index].corners[2].astype(int))[0] / 2  # 计算tag的横向位置
+            tag_width = abs(tuple(tags[index].corners[0].astype(int))[0] - tuple(tags[index].corners[2].astype(int))[0])
+        else:
+            tag_flag = 0
+
+    def update_frame_new(self, frame):#中立优先
+        h0 = 0  # shi fou you 0 ma
+        h1 = 0  # shi fou you 1 ma
+        h2 = 0
+        m1 = 0  # zui zhong xin 1 ma zhong xin zuo biao
+        m0 = 0  # zui zhong xin 0 ma zhong xin zuo biao
+        m2 = 0
+        mx0 = 0
+        mx1 = 0  # ma zhi zhong xin zuo biao
+        mx2 = 0
+        mid0 = 0
+        mid1 = 0
+        mid2 = 0
+        global tag_flag, tag_safe
+        global index
+        global mid
+        global tag_width
+        global tags
+        global distance
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        tags = self.at_detector.detect(gray)
+        tag_flag = 0
+        index = 0
+        if tags:
+            tag_flag = 1  # 这是个标志位
+            for i in range(1, len(tags)):
+                # 循环从第二个（results[1]）索引开始，进行冒泡排序。（因为前方index是从零开始的）所以排序没有遗漏
+                if tags[i].tag_id == di_fang_kuai or tags[i].tag_id == zhong_li_kuai:
+                    # 如果tag码块id是敌方或中立才进行距离比较，炸弹不管
+                    if tags[index].tag_id == zha_dan_kuai:
+                        # 这一步确保index=0的那个id不是炸弹，若是炸弹，则将索引就改成i（i现在肯定不是炸弹）
+                        index = i
+                    if tags[i].tag_id == di_fang_kuai:
+                        if tags[index].tag_id == di_fang_kuai:
+                            if (self.get_distance(tags[index].homography, 4300) >
+                                    self.get_distance(tags[i].homography, 4300)):  # 冒泡排序
+                                index = i
+                    elif tags[i].tag_id == zhong_li_kuai:
+                        if tags[index].tag_id == zhong_li_kuai:
+                            if (self.get_distance(tags[index].homography, 4300) >
+                                    self.get_distance(tags[i].homography, 4300)):  # 冒泡排序
+                                index = i
+                        elif tags[index].tag_id == di_fang_kuai:
                             index = i
             if tags[index].tag_id == di_fang_kuai or tags[index].tag_id == zhong_li_kuai:  # 冒泡后如果最近的id是中立或敌方
                 tag_safe = 1
@@ -134,7 +189,7 @@ def April_start_detect():
     while True:
         ret, frame = cap.read()
         frame = cv2.rotate(frame, cv2.ROTATE_180)
-        ad.update_frame(frame)
+        ad.update_frame_new(frame)
         if ret is False:
             cap.release()
             time.sleep(0.1)
@@ -183,6 +238,10 @@ def April_tag_move():
             right_low_low()
         else:
             straight_if()
+
+
+def April_tag_move_pid():
+    April_tag_move()
 
 
 def April_tag_escape():
@@ -244,9 +303,14 @@ def left():
     up.CDS_SetSpeed(2, -1000)
 
 
-def left_low():
+def left_x():
     up.CDS_SetSpeed(1, 600)
     up.CDS_SetSpeed(2, -900)
+
+
+def left_low():
+    up.CDS_SetSpeed(1, -600)
+    up.CDS_SetSpeed(2, 600)
 
 
 def left_low_low():
@@ -259,9 +323,14 @@ def right():
     up.CDS_SetSpeed(2, 1000)
 
 
-def right_low():
+def right_x():
     up.CDS_SetSpeed(1, -900)
     up.CDS_SetSpeed(2, 600)
+
+
+def right_low():
+    up.CDS_SetSpeed(1, 600)
+    up.CDS_SetSpeed(2, -600)
 
 
 def right_low_low():
@@ -291,12 +360,11 @@ if __name__ == "__main__":
     target2 = threading.Thread(target=April_start_detect)
     target2.start()
     # while True:
-    #     adc_value = up.ADC_Get_All_Channle()
     #     io_data = get_io_data(up)
     #     if io_data[6] == 0 and io_data[7] == 0:
     #         break
-    # adc_value_min = 500#333  #373
-    tai_flag=1
+    tai_flag = 0
+    tai_flag_time = 0
     down = 0
     up_flag = 0
     while True:
@@ -309,7 +377,7 @@ if __name__ == "__main__":
 
         up.LCD_SetFont(up.FONT_12X20)
         up.LCD_SetForeColor(up.COLOR_YELLOW)
-        up.LCD_PutString(0, 20, f'{adc_value[0] + adc_value[1] + adc_value[2]}')
+        # up.LCD_PutString(0, 20, f'{adc_value[0] + adc_value[1] + adc_value[2]}')
 
         up.LCD_Refresh()
 
@@ -336,7 +404,12 @@ if __name__ == "__main__":
                 up.CDS_SetAngle(3, 140, 1000)  # 最高
                 up.CDS_SetAngle(4, 600, 1000)
                 time.sleep(2)
-                tai_flag=0
+                tai_flag = 0
+            else:
+                tai_flag_time += 1
+                if tai_flag_time >= 30:
+                    tai_flag_time = 0
+                    tai_flag = 1
             if up_flag:
                 back()
                 time.sleep(1)
@@ -350,11 +423,9 @@ if __name__ == "__main__":
                 if io_data[0] == 0 and io_data[1] == 0:
                     up_flag = 1
                 else:
-                    up.CDS_SetSpeed(1, -600)
-                    up.CDS_SetSpeed(2, 600)
-
+                    right()
         else:
-            tai_flag=1
+            tai_flag = 1
             if io_data[3] == 0 and io_data[4] == 0:
                 if tag_flag:
                     if tag_safe:
@@ -362,14 +433,24 @@ if __name__ == "__main__":
                     else:
                         April_tag_escape()
                 else:
-                    if io_data[6] == 1 and io_data[7] == 0:
-                        right()
-                    if io_data[6] == 0 and io_data[7] == 1:
-                        left()
-                    if io_data[6] == 0 and io_data[7] == 0:
-                        right()
-                    else:
+                    if io_data[0] == 0 and io_data[1] == 0:
                         straight_if()
+                    elif io_data[0] == 1 and io_data[1] == 0:
+                        right()
+                    elif io_data[0] == 0 and io_data[1] == 1:
+                        left()
+                    else:
+                        if io_data[6] == 1 and io_data[7] == 0:
+                            right()
+                            time.sleep(0.5)
+                        elif io_data[6] == 0 and io_data[7] == 1:
+                            left()
+                            time.sleep(0.5)
+                        elif io_data[6] == 0 and io_data[7] == 0:
+                            right()
+                            time.sleep(0.5)
+                        else:
+                            straight_if()
             elif io_data[3] == 1 and io_data[4] == 0:
                 back_low()
                 time.sleep(0.02)
