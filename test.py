@@ -15,9 +15,9 @@ mid = 0
 tag_width = 0
 tags = []
 distance = 0
-di_fang_kuai = 1  # 敌方块
+di_fang_kuai = 2  # 敌方块
 zhong_li_kuai = 0  # 中立块
-zha_dan_kuai = 2  # 炸弹块
+zha_dan_kuai = 1  # 炸弹块
 index = 0
 flag = 0
 cnt = 0
@@ -425,10 +425,10 @@ if __name__ == "__main__":
     signal.signal(signal.SIGINT, signal_handler)
     target2 = threading.Thread(target=April_start_detect)
     target2.start()
-    # while True:
-    #     io_data = get_io_data(up)
-    #     if io_data[6] == 0 and io_data[7] == 0:
-    #         break
+    while True:
+        io_data = get_io_data(up)
+        if io_data[6] == 0 and io_data[7] == 0:
+            break
     tai_flag = 1
     tai_flag_time = 0
     escape_flag = 0
@@ -477,21 +477,17 @@ if __name__ == "__main__":
             if tai_flag:
                 up.CDS_SetAngle(3, 200, 700)  # 最高
                 up.CDS_SetAngle(4, 540, 700)
-                time.sleep(2)
+                time.sleep(1)
                 tai_flag = 0
-            else:
-                tai_flag_time += 1
-                if tai_flag_time >= 30:
-                    tai_flag_time = 0
-                    tai_flag = 1
             if up_flag:
                 up.CDS_SetSpeed(1, -600)
                 up.CDS_SetSpeed(2, -600)
                 time.sleep(0.3)
-                up.CDS_SetAngle(3, 630, 500)  # 最低
-                up.CDS_SetAngle(4, 130, 500)
+                up.CDS_SetAngle(3, 630, 700)  # 最低
+                up.CDS_SetAngle(4, 130, 700)
                 time.sleep(1.5)
                 up_flag = 0
+                tai_flag = 1
             else:
                 up.CDS_SetAngle(3, 200, 700)  # 最高
                 up.CDS_SetAngle(4, 540, 700)
@@ -507,7 +503,7 @@ if __name__ == "__main__":
             if io_data[3] == 0 and io_data[4] == 0:
                 if tag_flag:
                     if tag_safe:
-                        if distance>100:
+                        if distance > 100:
                             April_tag_move()
                         else:
                             if io_data[0] == 0 and io_data[1] == 0:
