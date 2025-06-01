@@ -158,7 +158,7 @@ def April_start_detect():
         #             print("敌方")
         #         elif tags[index].tag_id == 0:
         #             print("中立")
-        cv2.imshow("img", frame)
+        # cv2.imshow("img", frame)
         if cv2.waitKey(1) & 0xff == ord('q'):
             break
     cap.release()
@@ -174,7 +174,7 @@ def April_tag_move():
             right_low_low()
             # print("右")
         else:
-            straight()
+            straight_if()
             # print("前进")
     else:
         if mid < 160 - tag_width / 6:
@@ -182,7 +182,7 @@ def April_tag_move():
         elif mid > 160 + tag_width / 6:
             right_low_low()
         else:
-            straight()
+            straight_if()
 
 
 def April_tag_escape():
@@ -199,8 +199,8 @@ def signal_handler(handler_signal, handler_frame):
 
 
 def straight_low():
-    up.CDS_SetSpeed(1, 400)
-    up.CDS_SetSpeed(2, 450)
+    up.CDS_SetSpeed(1, 500)
+    up.CDS_SetSpeed(2, 550)
 
 
 def straight():
@@ -209,17 +209,19 @@ def straight():
 
 
 def straight_fast():
-    up.CDS_SetSpeed(1, 700)
-    up.CDS_SetSpeed(2, 700)
+    up.CDS_SetSpeed(1, 750)
+    up.CDS_SetSpeed(2, 750)
 
 
 def straight_if():
-    if adc_value[0] > 700 or adc_value[1] > 500:
+    if adc_value[0] > 660 or adc_value[1] > 460:
         straight_fast()
-    elif adc_value[0] > 660 or adc_value[1] > 460:
-        straight()
     else:
         straight_low()
+    # if adc_value[0] > 480 and adc_value[1] > 460 or adc_value[0] > 360 and adc_value[1] > 660:
+    #     straight_fast()
+    # else:
+    #     straight_low()
 
 
 def back():
@@ -286,15 +288,17 @@ if __name__ == "__main__":
     # FONT_12X20  = 11
     print("test succeed")
     signal.signal(signal.SIGINT, signal_handler)
-    # target2 = threading.Thread(target=April_start_detect)
-    # target2.start()
+    target2 = threading.Thread(target=April_start_detect)
+    target2.start()
     # while True:
     #     adc_value = up.ADC_Get_All_Channle()
     #     io_data = get_io_data(up)
     #     if io_data[6] == 0 and io_data[7] == 0:
     #         break
     # adc_value_min = 500#333  #373
-
+    tai_flag=1
+    down = 0
+    up_flag = 0
     while True:
         adc_value = up.ADC_Get_All_Channle()
         io_data = get_io_data(up)
@@ -305,36 +309,15 @@ if __name__ == "__main__":
 
         up.LCD_SetFont(up.FONT_12X20)
         up.LCD_SetForeColor(up.COLOR_YELLOW)
-        up.LCD_PutString(0, 20, f'{adc_value}')
+        up.LCD_PutString(0, 20, f'{adc_value[0] + adc_value[1] + adc_value[2]}')
 
         up.LCD_Refresh()
-        while adc_value[0] + adc_value[1] + adc_value[2] < 840:  # 185,222 #315,306
-            adc_value = up.ADC_Get_All_Channle()
-            io_data = get_io_data(up)
-            print(io_data)
-            if io_data[0] == 0 and io_data[1] == 0:
-                # back()
-                print(0)
-            elif io_data[0] == 1 and io_data[1] == 0:
-                right_low_low()
-                print(1)
 
-            elif io_data[0] == 0 and io_data[1] == 1:
-                left_low_low()
-                print(2)
-
-            else:
-                left_low_low()
-                print(3)
-
-            # stop()
-            up.CDS_SetAngle(3, 140, 1000)#最高
-            up.CDS_SetAngle(4, 600, 1000)
-            up.LCD_SetFont(up.FONT_12X20)
-            up.LCD_SetForeColor(up.COLOR_YELLOW)
-            up.LCD_PutString(0, 20, f'{adc_value}')
-
-        #
+        if adc_value[0] + adc_value[1] + adc_value[2] < 920:  # 185,222 #315,306
+            down = 1
+        else:
+            down = 0
+        # print(flag)
         up.CDS_SetAngle(3, 600, 500)  # 最低
         up.CDS_SetAngle(4, 140, 500)
         # up.CDS_SetAngle(3, 140, 1000)#最高
@@ -346,30 +329,57 @@ if __name__ == "__main__":
         # print(io_data)
         # 0、1 正前方红外   3、4斜向下   6、7左右
         # if adc_value_min<adc_value[0]+adc_value[1]+adc_value[2]:#846
-        #     adc_value_min=adc_value[0]+adc_value[1]+adc_value[2]
-        if io_data[3] == 0 and io_data[4] == 0:
-            if tag_flag:
-                if tag_safe:
-                    April_tag_move()
-                else:
-                    April_tag_escape()
+        # #     adc_value_min=adc_value[0]+adc_value[1]+adc_value[2]
+        # print(up_flag)
+        if down:
+            if tai_flag:
+                up.CDS_SetAngle(3, 140, 1000)  # 最高
+                up.CDS_SetAngle(4, 600, 1000)
+                time.sleep(2)
+                tai_flag=0
+            if up_flag:
+                back()
+                time.sleep(1)
+                up.CDS_SetAngle(3, 600, 500)  # 最低
+                up.CDS_SetAngle(4, 140, 500)
+                time.sleep(0.3)
+                up_flag = 0
             else:
-                # if io_data[6] == 1 and io_data[7] == 0:
-                #     while tag_flag == 0:
-                #         right_low_low()
-                # if io_data[6] == 0 and io_data[7] == 1:
-                #     while tag_flag == 0:
-                #         left_low_low()
-                # if io_data[6] == 0 and io_data[7] == 0:
-                #     while tag_flag == 0:
-                #         right_low_low()
-                # else:
-                straight_if()
-        elif io_data[3] == 1 and io_data[4] == 0:
-            right_low()
-        elif io_data[3] == 0 and io_data[4] == 1:
-            left_low()
+                up.CDS_SetAngle(3, 140, 1000)  # 最高
+                up.CDS_SetAngle(4, 600, 1000)
+                if io_data[0] == 0 and io_data[1] == 0:
+                    up_flag = 1
+                else:
+                    up.CDS_SetSpeed(1, -600)
+                    up.CDS_SetSpeed(2, 600)
+
         else:
-            back_low()
-            time.sleep(0.5)
+            tai_flag=1
+            if io_data[3] == 0 and io_data[4] == 0:
+                if tag_flag:
+                    if tag_safe:
+                        April_tag_move()
+                    else:
+                        April_tag_escape()
+                else:
+                    if io_data[6] == 1 and io_data[7] == 0:
+                        right()
+                    if io_data[6] == 0 and io_data[7] == 1:
+                        left()
+                    if io_data[6] == 0 and io_data[7] == 0:
+                        right()
+                    else:
+                        straight_if()
+            elif io_data[3] == 1 and io_data[4] == 0:
+                back_low()
+                time.sleep(0.02)
+                right_low()
+            elif io_data[3] == 0 and io_data[4] == 1:
+                back_low()
+                time.sleep(0.02)
+                left_low()
+            else:
+                back_low()
+                time.sleep(0.1)
+            # time.sleep(0.5)
         # print(f'adc{adc_value}')
