@@ -1,5 +1,3 @@
-from xml.sax.saxutils import escape
-
 import cv2
 import subprocess
 import uptech
@@ -131,93 +129,6 @@ class ApriltagDetect:
         else:
             tag_flag = 0
 
-    def update_frame_new(self, frame):  # 中立优先
-        h0 = 0  # shi fou you 0 ma
-        h1 = 0  # shi fou you 1 ma
-        h2 = 0
-        m1 = 0  # zui zhong xin 1 ma zhong xin zuo biao
-        m0 = 0  # zui zhong xin 0 ma zhong xin zuo biao
-        m2 = 0
-        mx0 = 0
-        mx1 = 0  # ma zhi zhong xin zuo biao
-        mx2 = 0
-        mid0 = 0
-        mid1 = 0
-        mid2 = 0
-        global tag_flag, tag_safe
-        global index
-        global mid
-        global tag_width
-        global tags
-        global distance
-        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        tags = self.at_detector.detect(gray)
-        tag_flag = 0
-        index = 0
-        if tags:
-            tag_flag = 1  # 这是个标志位
-            for i in range(1, len(tags)):
-                # 循环从第二个（results[1]）索引开始，进行冒泡排序。（因为前方index是从零开始的）所以排序没有遗漏
-                if tags[i].tag_id == di_fang_kuai or tags[i].tag_id == zhong_li_kuai:
-                    # 如果tag码块id是敌方或中立才进行距离比较，炸弹不管
-                    if tags[index].tag_id == zha_dan_kuai:
-                        # 这一步确保index=0的那个id不是炸弹，若是炸弹，则将索引就改成i（i现在肯定不是炸弹）
-                        index = i
-                    if tags[i].tag_id == di_fang_kuai:
-                        if tags[index].tag_id == di_fang_kuai:
-                            if (self.get_distance(tags[index].homography, 4300) >
-                                    self.get_distance(tags[i].homography, 4300)):  # 冒泡排序
-                                index = i
-                    elif tags[i].tag_id == zhong_li_kuai:
-                        if tags[index].tag_id == zhong_li_kuai:
-                            if (self.get_distance(tags[index].homography, 4300) >
-                                    self.get_distance(tags[i].homography, 4300)):  # 冒泡排序
-                                index = i
-                        elif tags[index].tag_id == di_fang_kuai:
-                            index = i
-            if tags[index].tag_id == di_fang_kuai or tags[index].tag_id == zhong_li_kuai:  # 冒泡后如果最近的id是中立或敌方
-                tag_safe = 1
-            else:  # 冒泡后如果的id是炸弹块(侧面证明了没有检测到敌方和中立)
-                tag_safe = 0
-            distance = int(self.get_distance(tags[index].homography, 4300))
-            mid = tuple(tags[index].corners[0].astype(int))[0] / 2 + \
-                  tuple(tags[index].corners[2].astype(int))[0] / 2  # 计算tag的横向位置
-            tag_width = abs(tuple(tags[index].corners[0].astype(int))[0] - tuple(tags[index].corners[2].astype(int))[0])
-        else:
-            tag_flag = 0
-
-    def get_distance(self, H, t):
-        ss = 0.5
-        src = np.array([[-ss, -ss, 0],
-                        [ss, -ss, 0],
-                        [ss, ss, 0],
-                        [-ss, ss, 0]])
-        Kmat = np.array([[700, 0, 0],
-                         [0, 700, 0],
-                         [0, 0, 1]]) * 1.0
-        disCoeffs = np.zeros([4, 1]) * 1.0
-        ipoints = np.array([[-1, -1],
-                            [1, -1],
-                            [1, 1],
-                            [-1, 1]])
-        for point in ipoints:
-            x = point[0]
-            y = point[1]
-            z = H[2, 0] * x + H[2, 1] * y + H[2, 2]
-            point[0] = (H[0, 0] * x + H[0, 1] * y + H[0, 2]) / z * 1.0
-            point[1] = (H[1, 0] * x + H[1, 1] * y + H[1, 2]) / z * 1.0
-        campoint = ipoints * 1.0
-        opoints = np.array([[-1.0, -1.0, 0.0],
-                            [1.0, -1.0, 0.0],
-                            [1.0, 1.0, 0.0],
-                            [-1.0, 1.0, 0.0]])
-        opoints = opoints * 0.5
-        rate, rvec, tvec = cv2.solvePnP(opoints, campoint, Kmat, disCoeffs)
-        point, jac = cv2.projectPoints(src, np.zeros(rvec.shape), tvec, Kmat, disCoeffs)
-        points = np.int32(np.reshape(point, [4, 2]))
-        distance = np.abs(t / np.linalg.norm(points[0] - points[1]))
-        return distance
-
 
 def get_io_data(up):
     io_all_input = up.ADC_IO_GetAllInputLevel()
@@ -227,6 +138,11 @@ def get_io_data(up):
         io = int(value)
         io_data.insert(0, io)
     return io_data
+
+
+def unify_all_gray(value, min, max):
+    value_unify = (value - min) * 1000 / (max - min)
+    return value_unify
 
 
 def April_start_detect():
@@ -239,7 +155,7 @@ def April_start_detect():
     while True:
         ret, frame = cap.read()
         frame = cv2.rotate(frame, cv2.ROTATE_180)
-        ad.update_frame_new(frame)
+        ad.update_frame(frame)
         if ret is False:
             cap.release()
             time.sleep(0.1)
@@ -419,12 +335,12 @@ if __name__ == "__main__":
     # FONT_12X20  = 11
     print("test succeed")
     signal.signal(signal.SIGINT, signal_handler)
-    target2 = threading.Thread(target=April_start_detect)
-    target2.start()
-    while True:
-        io_data = get_io_data(up)
-        if io_data[6] == 0 and io_data[7] == 0:
-            break
+    # target2 = threading.Thread(target=April_start_detect)
+    # target2.start()
+    # while True:
+    #     io_data = get_io_data(up)
+    #     if io_data[6] == 0 and io_data[7] == 0:
+    #         break
     tai_flag = 1
     tai_flag_time = 0
     escape_flag = 0
@@ -446,134 +362,149 @@ if __name__ == "__main__":
         up.LCD_SetForeColor(up.COLOR_GBLUE)
         up.LCD_PutString(0, 0, 'Go North All')
 
+        unify_adc_0=int(unify_all_gray(adc_value[0],780,2580))
+        unify_adc_1=int(unify_all_gray(adc_value[1],400,2020))
+        unify_adc_2=int(unify_all_gray(adc_value[2],1430,2990))
+        # print(f'original_adc{adc_value}')
+        print(f'unify_adc{unify_adc_0,unify_adc_1,unify_adc_2}')
+        # up.LCD_PutString(0, 20, f'{adc_value}')
         up.LCD_SetFont(up.FONT_12X20)
         up.LCD_SetForeColor(up.COLOR_YELLOW)
-        # up.LCD_PutString(0, 20, f'{adc_value[0] + adc_value[1] + adc_value[2]}')
+        up.LCD_PutString(0, 20, f'{adc_value[0] + adc_value[1] + adc_value[2]}')
+        up.LCD_PutString(0, 40, f'{unify_adc_0+unify_adc_1+unify_adc_2}')
+        # up.LCD_PutString(0, 20, f'{unify_adc_0}')
+        # up.LCD_PutString(60, 20, f'{unify_adc_1}')
+        # up.LCD_PutString(0, 40, f'{unify_adc_2}')
+        #统一灰度值
+        #2630 2100 3000
 
+        #2000 1400 2500
+        #1600 1100 2200
+        #730 330 1400
+        #640 300 1300
+
+        #780 400 1420
         up.LCD_Refresh()
 
-        if adc_value[0] + adc_value[1] + adc_value[2] < 890:  # 185,222 #315,306
-            down = 1
-        else:
-            down = 0
 
-        if io_data[6] == 0 and io_data[7] == 1:
-            check_left_time += 1
-        else:
-            check_left_time = 0
-        if io_data[6] == 1 and io_data[7] == 0:
-            check_right_time += 1
-        else:
-            check_right_time = 0
+        # if adc_value[0] + adc_value[1] + adc_value[2] < 890:  # 185,222 #315,306
+        #     down = 1
+        # else:
+        #     down = 0
+        #
+        # if io_data[6] == 0 and io_data[7] == 1:
+        #     check_left_time += 1
+        # else:
+        #     check_left_time = 0
+        # if io_data[6] == 1 and io_data[7] == 0:
+        #     check_right_time += 1
+        # else:
+        #     check_right_time = 0
 
-        # print(flag)
         # up.CDS_SetAngle(3, 630, 500)  # 最低
         # up.CDS_SetAngle(4, 130, 500)
         # up.CDS_SetAngle(3, 200, 700)#最高
         # up.CDS_SetAngle(4, 540, 700)
 
-        # print(tag_flag)
-        # print(io_data)
         # 0、1 正前方红外   3、4斜向下   6、7左右
         # if adc_value_min<adc_value[0]+adc_value[1]+adc_value[2]:#846
         # #     adc_value_min=adc_value[0]+adc_value[1]+adc_value[2]
         # print(up_flag)
-        if escape_flag:
-            escape_time -= 1
-            if escape_time <= 0:
-                escape_time = 200
-                escape_flag = 0
-        if down:
-            if tai_flag:
-                up.CDS_SetAngle(3, 200, 700)  # 最高
-                up.CDS_SetAngle(4, 540, 700)
-                time.sleep(1)
-                tai_flag = 0
-            if up_flag:
-                up.CDS_SetSpeed(1, -600)
-                up.CDS_SetSpeed(2, -600)
-                time.sleep(0.3)
-                up.CDS_SetAngle(3, 630, 700)  # 最低
-                up.CDS_SetAngle(4, 130, 700)
-                time.sleep(1.5)
-                up_flag = 0
-                tai_flag = 1
-            else:
-                up.CDS_SetAngle(3, 200, 700)  # 最高
-                up.CDS_SetAngle(4, 540, 700)
-                if io_data[0] == 0 and io_data[1] == 0:
-                    up_flag = 1
-                else:
-                    up.CDS_SetSpeed(1, -470)
-                    up.CDS_SetSpeed(2, 470)
-        else:
-            up.CDS_SetAngle(3, 630, 500)  # 最低
-            up.CDS_SetAngle(4, 130, 500)
-            tai_flag = 1
-            if io_data[3] == 0 and io_data[4] == 0:
-                if tag_flag:
-                    if tag_safe:
-                        if distance > 100:
-                            April_tag_move()
-                        else:
-                            if io_data[0] == 0 and io_data[1] == 0:
-                                straight_if()
-                            elif io_data[0] == 1 and io_data[1] == 0:
-                                right_low_low()
-                            elif io_data[0] == 0 and io_data[1] == 1:
-                                left_low_low()
-                            else:
-                                straight_if()
-                    else:
-                        April_tag_escape()
-                        escape_flag = 1
-                else:
-                    if io_data[0] == 0 and io_data[1] == 0:
-                        straight_if()
-                    elif io_data[0] == 1 and io_data[1] == 0:
-                        right_low_low()
-                    elif io_data[0] == 0 and io_data[1] == 1:
-                        left_low_low()
-                    else:
-                        if check_right_time >= 5 and escape_flag == 0:
-                            while True:
-                                t += 1
-                                adc_value = up.ADC_Get_All_Channle()
-                                io_data = get_io_data(up)
-                                right_low()
-                                if io_data[0] == 0 and io_data[1] == 0 or t >= 300:
-                                    t = 0
-                                    check_right_time = 0
-                                    break
-                                if adc_value[0] + adc_value[1] + adc_value[2] < 860:
-                                    t = 0
-                                    check_right_time = 0
-                                    break
-                        elif check_left_time >= 5 and escape_flag == 0:
-                            while True:
-                                t += 1
-                                adc_value = up.ADC_Get_All_Channle()
-                                io_data = get_io_data(up)
-                                left_low()
-                                if io_data[0] == 0 and io_data[1] == 0 or t >= 300:
-                                    t = 0
-                                    check_left_time = 0
-                                    break
-                                if adc_value[0] + adc_value[1] + adc_value[2] < 860:
-                                    t = 0
-                                    check_left_time = 0
-                                    break
-                        else:
-                            straight_if()
-            elif io_data[3] == 1 and io_data[4] == 0:
-                back_low()
-                time.sleep(0.01)
-                right_x()
-            elif io_data[3] == 0 and io_data[4] == 1:
-                back_low()
-                time.sleep(0.01)
-                left_x()
-            else:
-                back_low()
-                time.sleep(0.1)
-        # print(f'adc{adc_value}')
+        # if escape_flag:
+        #     escape_time -= 1
+        #     if escape_time <= 0:
+        #         escape_time = 200
+        #         escape_flag = 0
+        # if down:
+        #     if tai_flag:
+        #         up.CDS_SetAngle(3, 200, 700)  # 最高
+        #         up.CDS_SetAngle(4, 540, 700)
+        #         time.sleep(1)
+        #         tai_flag = 0
+        #     if up_flag:
+        #         up.CDS_SetSpeed(1, -600)
+        #         up.CDS_SetSpeed(2, -600)
+        #         time.sleep(0.3)
+        #         up.CDS_SetAngle(3, 630, 700)  # 最低
+        #         up.CDS_SetAngle(4, 130, 700)
+        #         time.sleep(1.5)
+        #         up_flag = 0
+        #         tai_flag = 1
+        #     else:
+        #         up.CDS_SetAngle(3, 200, 700)  # 最高
+        #         up.CDS_SetAngle(4, 540, 700)
+        #         if io_data[0] == 0 and io_data[1] == 0:
+        #             up_flag = 1
+        #         else:
+        #             up.CDS_SetSpeed(1, -470)
+        #             up.CDS_SetSpeed(2, 470)
+        # else:
+        #     up.CDS_SetAngle(3, 630, 500)  # 最低
+        #     up.CDS_SetAngle(4, 130, 500)
+        #     tai_flag = 1
+        #     if io_data[3] == 0 and io_data[4] == 0:
+        #         if tag_flag:
+        #             if tag_safe:
+        #                 if distance > 100:
+        #                     April_tag_move()
+        #                 else:
+        #                     if io_data[0] == 0 and io_data[1] == 0:
+        #                         straight_if()
+        #                     elif io_data[0] == 1 and io_data[1] == 0:
+        #                         right_low_low()
+        #                     elif io_data[0] == 0 and io_data[1] == 1:
+        #                         left_low_low()
+        #                     else:
+        #                         straight_if()
+        #             else:
+        #                 April_tag_escape()
+        #                 escape_flag = 1
+        #         else:
+        #             if io_data[0] == 0 and io_data[1] == 0:
+        #                 straight_if()
+        #             elif io_data[0] == 1 and io_data[1] == 0:
+        #                 right_low_low()
+        #             elif io_data[0] == 0 and io_data[1] == 1:
+        #                 left_low_low()
+        #             else:
+        #                 if check_right_time >= 5 and escape_flag == 0:
+        #                     while True:
+        #                         t += 1
+        #                         adc_value = up.ADC_Get_All_Channle()
+        #                         io_data = get_io_data(up)
+        #                         right_low()
+        #                         if io_data[0] == 0 and io_data[1] == 0 or t >= 300:
+        #                             t = 0
+        #                             check_right_time = 0
+        #                             break
+        #                         if adc_value[0] + adc_value[1] + adc_value[2] < 860:
+        #                             t = 0
+        #                             check_right_time = 0
+        #                             break
+        #                 elif check_left_time >= 5 and escape_flag == 0:
+        #                     while True:
+        #                         t += 1
+        #                         adc_value = up.ADC_Get_All_Channle()
+        #                         io_data = get_io_data(up)
+        #                         left_low()
+        #                         if io_data[0] == 0 and io_data[1] == 0 or t >= 300:
+        #                             t = 0
+        #                             check_left_time = 0
+        #                             break
+        #                         if adc_value[0] + adc_value[1] + adc_value[2] < 860:
+        #                             t = 0
+        #                             check_left_time = 0
+        #                             break
+        #                 else:
+        #                     straight_if()
+        #     elif io_data[3] == 1 and io_data[4] == 0:
+        #         back_low()
+        #         time.sleep(0.01)
+        #         right_x()
+        #     elif io_data[3] == 0 and io_data[4] == 1:
+        #         back_low()
+        #         time.sleep(0.01)
+        #         left_x()
+        #     else:
+        #         back_low()
+        #         time.sleep(0.1)
