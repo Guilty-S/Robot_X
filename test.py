@@ -20,24 +20,6 @@ index = 0
 flag = 0
 cnt = 0
 
-tai_flag = 1
-tai_flag_time = 0
-escape_flag = 0
-escape_time = 20
-down = 0
-up_flag = 0
-t = 0
-check_right_time = 0
-check_left_time = 0
-check_down_time = 0
-adc_last_0 = 0
-adc_last_1 = 0
-adc_last_2 = 0
-adc_last_3 = 0
-adc_last_4 = 0
-unify_all = 0
-buffer = 30
-
 
 class PIDController:
     def __init__(self, Kp, Ki, Kd, gkd, out_limit):
@@ -315,77 +297,6 @@ def unify_all_gray():
     # print(unify_all)
 
 
-def check_time():
-    global check_left_time, check_right_time, check_down_time, down
-    if io_data[6] == 0 and io_data[7] == 1:
-        check_left_time += 1
-    else:
-        check_left_time = 0
-    if io_data[6] == 1 and io_data[7] == 0:
-        check_right_time += 1
-    else:
-        check_right_time = 0
-    if unify_all < -450:
-        check_down_time += 1
-    else:
-        check_down_time = 0
-    if check_down_time >= 5:
-        down = 1
-    else:
-        down = 0
-
-
-def down_act():
-    global tai_flag, up_flag, buffer
-    if tai_flag:
-        up.CDS_SetAngle(3, 205, 700)  # 最高
-        up.CDS_SetAngle(4, 580, 700)
-        time.sleep(1)
-        tai_flag = 0
-    if up_flag:
-        back(700)
-        time.sleep(0.3)
-        up.CDS_SetAngle(3, 620, 700)  # 最低
-        up.CDS_SetAngle(4, 180, 700)
-        time.sleep(1.5)
-        up_flag = 0
-        tai_flag = 1
-        buffer = 60
-    else:
-        up.CDS_SetAngle(3, 205, 700)  # 最高
-        up.CDS_SetAngle(4, 580, 700)
-        if io_data[0] == 0 and io_data[1] == 0:
-            up_flag = 1
-        else:
-            right(600)
-
-
-def up_act():
-    global tai_flag
-    up.CDS_SetAngle(3, 620, 700)  # 最低
-    up.CDS_SetAngle(4, 180, 700)
-    tai_flag = 1
-    if io_data[3] == 0 and io_data[4] == 0:
-        straight(700, 700)
-    elif io_data[3] == 1 and io_data[4] == 0:
-        back(400)
-        time.sleep(0.1)
-        back(800)
-        time.sleep(0.2)
-        right(1000)
-        time.sleep(0.2)
-    elif io_data[3] == 0 and io_data[4] == 1:
-        back(400)
-        time.sleep(0.1)
-        back(800)
-        time.sleep(0.2)
-        left(1000)
-        time.sleep(0.2)
-    else:
-        back(400)
-        time.sleep(0.1)
-
-
 if __name__ == "__main__":
     up = uptech.UpTech()
     up.LCD_Open(2)
@@ -413,6 +324,23 @@ if __name__ == "__main__":
     #     io_data = get_io_data(up)
     #     if io_data[6] == 0 and io_data[7] == 0:
     #         break
+    tai_flag = 1
+    tai_flag_time = 0
+    escape_flag = 0
+    escape_time = 20
+    down = 0
+    up_flag = 0
+    t = 0
+    check_right_time = 0
+    check_left_time = 0
+    check_down_time = 0
+    adc_last_0 = 0
+    adc_last_1 = 0
+    adc_last_2 = 0
+    adc_last_3 = 0
+    adc_last_4 = 0
+    unify_all = 0
+    buffer = 30
     # 初始化PID控制器
     # 在控制循环中计算输出
     while True:
@@ -439,7 +367,22 @@ if __name__ == "__main__":
         up.LCD_Refresh()
         # print(f'unify_adc{unify_all}')
         # print(f'unify_adc{unify_adc_0, unify_adc_1, unify_adc_2, unify_adc_3, unify_adc_4}')
-
+        if io_data[6] == 0 and io_data[7] == 1:
+            check_left_time += 1
+        else:
+            check_left_time = 0
+        if io_data[6] == 1 and io_data[7] == 0:
+            check_right_time += 1
+        else:
+            check_right_time = 0
+        if unify_all < -450:
+            check_down_time += 1
+        else:
+            check_down_time = 0
+        if check_down_time >= 5:
+            down = 1
+        else:
+            down = 0
         # up.CDS_SetAngle(3, 620, 700)  # 最低
         # up.CDS_SetAngle(4, 180, 700)
         # up.CDS_SetAngle(3, 205, 700)  # 最高
@@ -451,8 +394,49 @@ if __name__ == "__main__":
         #     if escape_time <= 0:
         #         escape_time = 200
         #         escape_flag = 0
-        check_time()
         if down:
-            down_act()
+            if tai_flag:
+                up.CDS_SetAngle(3, 205, 700)  # 最高
+                up.CDS_SetAngle(4, 580, 700)
+                time.sleep(1)
+                tai_flag = 0
+            if up_flag:
+                back(700)
+                time.sleep(0.3)
+                up.CDS_SetAngle(3, 620, 700)  # 最低
+                up.CDS_SetAngle(4, 180, 700)
+                time.sleep(1.5)
+                up_flag = 0
+                tai_flag = 1
+                buffer = 60
+            else:
+                up.CDS_SetAngle(3, 205, 700)  # 最高
+                up.CDS_SetAngle(4, 580, 700)
+                if io_data[0] == 0 and io_data[1] == 0:
+                    up_flag = 1
+                else:
+                    right(600)
         else:
-            up_act()
+            up.CDS_SetAngle(3, 620, 700)  # 最低
+            up.CDS_SetAngle(4, 180, 700)
+            tai_flag = 1
+            if io_data[3] == 0 and io_data[4] == 0:
+                straight(700, 700)
+            elif io_data[3] == 1 and io_data[4] == 0:
+                back(400)
+                time.sleep(0.1)
+                back(800)
+                time.sleep(0.2)
+                right(1000)
+                time.sleep(0.2)
+            elif io_data[3] == 0 and io_data[4] == 1:
+                back(400)
+                time.sleep(0.1)
+                back(800)
+                time.sleep(0.2)
+                left(1000)
+                time.sleep(0.2)
+            else:
+                back(400)
+                time.sleep(0.1)
+
