@@ -130,21 +130,6 @@ class ApriltagDetect:
             tag_flag = 0
 
 
-def get_io_data(up):
-    io_all_input = up.ADC_IO_GetAllInputLevel()
-    io_array = '{:08b}'.format(io_all_input)
-    io_data = []
-    for index, value in enumerate(io_array):
-        io = int(value)
-        io_data.insert(0, io)
-    return io_data
-
-
-def unify_all_gray(value, min, max):
-    value_unify = (value - min) * 1000 / (max - min)
-    return value_unify
-
-
 def April_start_detect():
     global frame
     cap = cv2.VideoCapture('/dev/video0')
@@ -186,17 +171,17 @@ def April_start_detect():
     cv2.destroyAllWindows()
 
 
-def April_tag_move():
-    if distance > 200:
-        if mid < 160 - tag_width:
-            left_low_low()
-            # print("左")
-        elif mid > 160 + tag_width:
-            right_low_low()
-            # print("右")
-        else:
-            straight_if()
-            # print("前进")
+# def April_tag_move():
+#     if distance > 200:
+#         if mid < 160 - tag_width:
+#             left_low_low()
+#             # print("左")
+#         elif mid > 160 + tag_width:
+#             right_low_low()
+#             # print("右")
+#         else:
+#             straight_if()
+#             # print("前进")
 
 
 def April_tag_move_pid():
@@ -212,12 +197,12 @@ def April_tag_move_pid():
         straight_if()
 
 
-def April_tag_escape():
-    if distance < 200:
-        if mid < 160:
-            right()
-        else:
-            left()
+# def April_tag_escape():
+#     if distance < 200:
+#         if mid < 160:
+#             right()
+#         else:
+#             left()
 
 
 def signal_handler(handler_signal, handler_frame):
@@ -225,45 +210,13 @@ def signal_handler(handler_signal, handler_frame):
     exit(0)
 
 
-def straight_low():
-    up.CDS_SetSpeed(1, 470)
-    up.CDS_SetSpeed(2, 470)
-
-
-def straight():
-    up.CDS_SetSpeed(1, 650)
-    up.CDS_SetSpeed(2, 650)
-
-
-def straight_fast():
-    up.CDS_SetSpeed(1, 900)
-    up.CDS_SetSpeed(2, 900)
+def straight(speed_1, speed_2):
+    up.CDS_SetSpeed(1, -speed_1)
+    up.CDS_SetSpeed(2, -speed_2)
 
 
 def straight_if():
-    if adc_value[0] > 670 or adc_value[1] > 470:
-        straight()
-    else:
-        straight_low()
-    # if adc_value[0] > 660 or adc_value[1] > 460:
-    #     straight_fast()
-    # else:
-    #     straight_low()
-
-
-def back():
-    up.CDS_SetSpeed(1, -1000)
-    up.CDS_SetSpeed(2, -1000)
-
-
-def back_low():
-    up.CDS_SetSpeed(1, -500)
-    up.CDS_SetSpeed(2, -500)
-
-
-def back_up():
-    up.CDS_SetSpeed(1, -600)
-    up.CDS_SetSpeed(2, -600)
+    straight(600, 600)
 
 
 def stop():
@@ -271,49 +224,72 @@ def stop():
     up.CDS_SetSpeed(2, 0)
 
 
-def left():
-    up.CDS_SetSpeed(1, 1000)
-    up.CDS_SetSpeed(2, -1000)
+def back(speed):
+    up.CDS_SetSpeed(1, speed)
+    up.CDS_SetSpeed(2, speed)
 
 
-def left_x():
-    up.CDS_SetSpeed(1, 600)
-    up.CDS_SetSpeed(2, -900)
+def left(speed):
+    up.CDS_SetSpeed(1, speed)
+    up.CDS_SetSpeed(2, -speed)
 
 
-def left_low():
-    up.CDS_SetSpeed(1, 600)
-    up.CDS_SetSpeed(2, -600)
+def right(speed):
+    up.CDS_SetSpeed(1, -speed)
+    up.CDS_SetSpeed(2, speed)
 
 
-def left_low_low():
-    up.CDS_SetSpeed(1, 400)
-    up.CDS_SetSpeed(2, -400)
+def get_io_data(up):
+    io_all_input = up.ADC_IO_GetAllInputLevel()
+    io_array = '{:08b}'.format(io_all_input)
+    io_data = []
+    for index, value in enumerate(io_array):
+        io = int(value)
+        io_data.insert(0, io)
+    return io_data
 
 
-def right():
-    up.CDS_SetSpeed(1, -1000)
-    up.CDS_SetSpeed(2, 1000)
+def mix_all_gray():
+    alpha = 0.7
+    global adc_last_0
+    global adc_last_1
+    global adc_last_2
+    global adc_last_3
+    global adc_last_4
+    global mix_adc_0
+    global mix_adc_1
+    global mix_adc_2
+    global mix_adc_3
+    global mix_adc_4
+    mix_adc_0 = (1 - alpha) * adc_value[0] + alpha * adc_last_0
+    mix_adc_1 = (1 - alpha) * adc_value[1] + alpha * adc_last_1
+    mix_adc_2 = (1 - alpha) * adc_value[2] + alpha * adc_last_2
+    mix_adc_3 = (1 - alpha) * adc_value[3] + alpha * adc_last_3
+    mix_adc_4 = (1 - alpha) * adc_value[4] + alpha * adc_last_4
+    adc_last_0 = mix_adc_0
+    adc_last_1 = mix_adc_1
+    adc_last_2 = mix_adc_2
+    adc_last_3 = mix_adc_3
+    adc_last_4 = mix_adc_4
+    # print(f'{mix_adc_0:.2f},{mix_adc_1:.2f},{mix_adc_2:.2f},{mix_adc_3:.2f},{mix_adc_4:.2f}')
+    # print(adc_value)
 
 
-def right_x():
-    up.CDS_SetSpeed(1, -900)
-    up.CDS_SetSpeed(2, 600)
+def unify_gray(value, min, max):  # 灰度线性校准
+    value_unify = (value - min) * 1000 / (max - min)
+    return value_unify
 
 
-def right_low():
-    up.CDS_SetSpeed(1, -600)
-    up.CDS_SetSpeed(2, 600)
-
-
-def right_up():
-    up.CDS_SetSpeed(1, -500)
-    up.CDS_SetSpeed(2, 500)
-
-
-def right_low_low():
-    up.CDS_SetSpeed(1, -400)
-    up.CDS_SetSpeed(2, 400)
+def unify_all_gray():
+    unify_adc_0 = (unify_gray(mix_adc_0, 437, 1011))
+    unify_adc_1 = (unify_gray(mix_adc_1, 296, 732))
+    unify_adc_2 = (unify_gray(mix_adc_2, 322, 680))
+    unify_adc_3 = (unify_gray(mix_adc_3, 377, 840))
+    unify_adc_4 = (unify_gray(mix_adc_4, 333, 780))
+    global unify_all
+    unify_all = unify_adc_0 + unify_adc_1 + unify_adc_2 + unify_adc_3 + unify_adc_4
+    # unify_all = adc_value[0]+adc_value[1]+adc_value[2]+adc_value[3]+adc_value[4]
+    # print(unify_all)
 
 
 if __name__ == "__main__":
@@ -321,14 +297,16 @@ if __name__ == "__main__":
     up.LCD_Open(2)
     up.ADC_IO_Open()
     up.CDS_Open()
-    up.ADC_Led_SetColor(0, 0xE67E223)  # FF0000(纯红)FF5733(橙红)C70039(深红)000000(纯黑)FFFF00(纯黄)
-    up.ADC_Led_SetColor(1, 0x800080)  # 0000FF(纯蓝)3498DB(天蓝)2C3E50(深蓝)E67E22(萝卜橙)8B4513(马棕)
-    # F9E79F(纯白)00FF00(纯绿色)800080(纯紫)E67E223(青色)
+    up.ADC_Led_SetColor(0, 0x2F0000)
+    up.ADC_Led_SetColor(1, 0x002F00)
+    # up.ADC_Led_SetColor(0, 0xE67E223)  # FF0000(纯红)FF5733(橙红)C70039(深红)000000(纯黑)FFFF00(纯黄)
+    # up.ADC_Led_SetColor(1, 0x800080)  # 0000FF(纯蓝)3498DB(天蓝)2C3E50(深蓝)E67E22(萝卜橙)8B4513(马棕)
+    # # F9E79F(纯白)00FF00(纯绿色)800080(纯紫)E67E223(青色)
     io_data = []
     up.CDS_SetMode(1, 1)
     up.CDS_SetMode(2, 1)
-    up.CDS_SetMode(3, 0)  # 最低 600 平放 420  最高 140
-    up.CDS_SetMode(4, 0)  # 最低 140 平放 320  最高 600
+    up.CDS_SetMode(3, 0)
+    up.CDS_SetMode(4, 0)
     # FONT_8X14   = 8
     # FONT_10X16  = 9
     # FONT_12X16  = 10
@@ -349,49 +327,42 @@ if __name__ == "__main__":
     up_flag = 0
     t = 0
     check_right_time = 0
-    check_right = 0
     check_left_time = 0
-    check_left = 0
+    adc_last_0 = 0
+    adc_last_1 = 0
+    adc_last_2 = 0
+    adc_last_3 = 0
+    adc_last_4 = 0
+    unify_all=0
+
     # 初始化PID控制器
     # 在控制循环中计算输出
     while True:
         adc_value = up.ADC_Get_All_Channle()
+        mix_all_gray()
+        unify_all_gray()
         io_data = get_io_data(up)
-        # result = "[{}]".format(",".join(map(str, adc_value)))
         up.LCD_SetFont(up.FONT_12X20)
         up.LCD_SetForeColor(up.COLOR_GBLUE)
-        up.LCD_PutString(0, 0, 'Go North All')
+        # up.LCD_PutString(0, 0, 'Go North All')
 
-        unify_adc_0=int(unify_all_gray(adc_value[0],780,2580))
-        unify_adc_1=int(unify_all_gray(adc_value[1],400,2020))
-        unify_adc_2=int(unify_all_gray(adc_value[2],1430,2990))
-        # print(f'original_adc{adc_value}')
-        print(f'unify_adc{unify_adc_0,unify_adc_1,unify_adc_2}')
-        # up.LCD_PutString(0, 20, f'{adc_value}')
         up.LCD_SetFont(up.FONT_12X20)
         up.LCD_SetForeColor(up.COLOR_YELLOW)
-        up.LCD_PutString(0, 20, f'{adc_value[0] + adc_value[1] + adc_value[2]}')
-        up.LCD_PutString(0, 40, f'{unify_adc_0+unify_adc_1+unify_adc_2}')
+        up.LCD_PutString(0, 20, f'{unify_all}')
+        # print(unify_all)
+        # up.LCD_PutString(0, 40, f'{unify_adc_0 + unify_adc_1 + unify_adc_2}')
+        # up.LCD_PutString(0, 20, f'{adc_value[0]+adc_value[1]+adc_value[2]+adc_value[3]+adc_value[4]}')
+        # up.LCD_PutString(0, 20, f'{unify_adc_0 + unify_adc_1 + unify_adc_2 + unify_adc_3 + unify_adc_4}')
         # up.LCD_PutString(0, 20, f'{unify_adc_0}')
         # up.LCD_PutString(60, 20, f'{unify_adc_1}')
         # up.LCD_PutString(0, 40, f'{unify_adc_2}')
-        #统一灰度值
-        #2630 2100 3000
-
-        #2000 1400 2500
-        #1600 1100 2200
-        #730 330 1400
-        #640 300 1300
-
-        #780 400 1420
         up.LCD_Refresh()
-
-
-        # if adc_value[0] + adc_value[1] + adc_value[2] < 890:  # 185,222 #315,306
-        #     down = 1
-        # else:
-        #     down = 0
-        #
+        # print(f'unify_adc{unify_all}')
+        # print(f'unify_adc{unify_adc_0, unify_adc_1, unify_adc_2, unify_adc_3, unify_adc_4}')
+        if unify_all < -450:  # 185,222 #315,306
+            down = 1
+        else:
+            down = 0
         # if io_data[6] == 0 and io_data[7] == 1:
         #     check_left_time += 1
         # else:
@@ -401,110 +372,29 @@ if __name__ == "__main__":
         # else:
         #     check_right_time = 0
 
-        # up.CDS_SetAngle(3, 630, 500)  # 最低
-        # up.CDS_SetAngle(4, 130, 500)
-        # up.CDS_SetAngle(3, 200, 700)#最高
-        # up.CDS_SetAngle(4, 540, 700)
+        up.CDS_SetAngle(3, 620, 700)  # 最低
+        up.CDS_SetAngle(4, 180, 700)
+        # up.CDS_SetAngle(3, 205, 700)  # 最高
+        # up.CDS_SetAngle(4, 580, 700)
 
         # 0、1 正前方红外   3、4斜向下   6、7左右
-        # if adc_value_min<adc_value[0]+adc_value[1]+adc_value[2]:#846
-        # #     adc_value_min=adc_value[0]+adc_value[1]+adc_value[2]
-        # print(up_flag)
         # if escape_flag:
         #     escape_time -= 1
         #     if escape_time <= 0:
         #         escape_time = 200
         #         escape_flag = 0
-        # if down:
-        #     if tai_flag:
-        #         up.CDS_SetAngle(3, 200, 700)  # 最高
-        #         up.CDS_SetAngle(4, 540, 700)
-        #         time.sleep(1)
-        #         tai_flag = 0
-        #     if up_flag:
-        #         up.CDS_SetSpeed(1, -600)
-        #         up.CDS_SetSpeed(2, -600)
-        #         time.sleep(0.3)
-        #         up.CDS_SetAngle(3, 630, 700)  # 最低
-        #         up.CDS_SetAngle(4, 130, 700)
-        #         time.sleep(1.5)
-        #         up_flag = 0
-        #         tai_flag = 1
-        #     else:
-        #         up.CDS_SetAngle(3, 200, 700)  # 最高
-        #         up.CDS_SetAngle(4, 540, 700)
-        #         if io_data[0] == 0 and io_data[1] == 0:
-        #             up_flag = 1
-        #         else:
-        #             up.CDS_SetSpeed(1, -470)
-        #             up.CDS_SetSpeed(2, 470)
+
+        # if io_data[3] == 0 and io_data[4] == 0:
+        #     straight(700, 700)
+        # elif io_data[3] == 1 and io_data[4] == 0:
+        #     back(500)
+        #     time.sleep(0.4)
+        #     right(1000, 1000)
+        #     time.sleep(0.2)
+        # elif io_data[3] == 0 and io_data[4] == 1:
+        #     back(500)
+        #     time.sleep(0.4)
+        #     left(1000, 1000)
+        #     time.sleep(0.2)
         # else:
-        #     up.CDS_SetAngle(3, 630, 500)  # 最低
-        #     up.CDS_SetAngle(4, 130, 500)
-        #     tai_flag = 1
-        #     if io_data[3] == 0 and io_data[4] == 0:
-        #         if tag_flag:
-        #             if tag_safe:
-        #                 if distance > 100:
-        #                     April_tag_move()
-        #                 else:
-        #                     if io_data[0] == 0 and io_data[1] == 0:
-        #                         straight_if()
-        #                     elif io_data[0] == 1 and io_data[1] == 0:
-        #                         right_low_low()
-        #                     elif io_data[0] == 0 and io_data[1] == 1:
-        #                         left_low_low()
-        #                     else:
-        #                         straight_if()
-        #             else:
-        #                 April_tag_escape()
-        #                 escape_flag = 1
-        #         else:
-        #             if io_data[0] == 0 and io_data[1] == 0:
-        #                 straight_if()
-        #             elif io_data[0] == 1 and io_data[1] == 0:
-        #                 right_low_low()
-        #             elif io_data[0] == 0 and io_data[1] == 1:
-        #                 left_low_low()
-        #             else:
-        #                 if check_right_time >= 5 and escape_flag == 0:
-        #                     while True:
-        #                         t += 1
-        #                         adc_value = up.ADC_Get_All_Channle()
-        #                         io_data = get_io_data(up)
-        #                         right_low()
-        #                         if io_data[0] == 0 and io_data[1] == 0 or t >= 300:
-        #                             t = 0
-        #                             check_right_time = 0
-        #                             break
-        #                         if adc_value[0] + adc_value[1] + adc_value[2] < 860:
-        #                             t = 0
-        #                             check_right_time = 0
-        #                             break
-        #                 elif check_left_time >= 5 and escape_flag == 0:
-        #                     while True:
-        #                         t += 1
-        #                         adc_value = up.ADC_Get_All_Channle()
-        #                         io_data = get_io_data(up)
-        #                         left_low()
-        #                         if io_data[0] == 0 and io_data[1] == 0 or t >= 300:
-        #                             t = 0
-        #                             check_left_time = 0
-        #                             break
-        #                         if adc_value[0] + adc_value[1] + adc_value[2] < 860:
-        #                             t = 0
-        #                             check_left_time = 0
-        #                             break
-        #                 else:
-        #                     straight_if()
-        #     elif io_data[3] == 1 and io_data[4] == 0:
-        #         back_low()
-        #         time.sleep(0.01)
-        #         right_x()
-        #     elif io_data[3] == 0 and io_data[4] == 1:
-        #         back_low()
-        #         time.sleep(0.01)
-        #         left_x()
-        #     else:
-        #         back_low()
-        #         time.sleep(0.1)
+        #     back(600)
