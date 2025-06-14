@@ -1,3 +1,5 @@
+from re import search
+
 import cv2
 import subprocess
 import uptech
@@ -183,7 +185,7 @@ def April_start_detect():
         #             print("敌方")
         #         elif tags[index].tag_id == 0:
         #             print("中立")
-        # cv2.imshow("img", frame)
+        cv2.imshow("img", frame)
         if cv2.waitKey(1) & 0xff == ord('q'):
             break
     cap.release()
@@ -248,7 +250,12 @@ def straight_if():
     #     straight(400, 400)
     #     buffer -= 1
     # else:
-    straight(700, 700)
+    if unify_all >3500:
+        straight(1000,1000)
+    elif unify_all >3000:
+        straight(700,700)
+    else:
+        straight(600, 600)
 
 
 def stop():
@@ -259,6 +266,33 @@ def stop():
 def back(speed):
     up.CDS_SetSpeed(1, speed)
     up.CDS_SetSpeed(2, speed)
+
+
+def back_sleep():
+    stop()
+    time.sleep(0.05)
+    back(200)
+    time.sleep(0.05)
+    back(400)
+    time.sleep(0.05)
+    back(600)
+    time.sleep(0.1)
+    # sleep_time = 20
+    # while sleep_time >= 0:
+    #     sleep_time-=1
+    #     stop()
+    # sleep_time = 20
+    # while sleep_time >= 0:
+    #     sleep_time-=1
+    #     back(200)
+    # sleep_time = 20
+    # while sleep_time >= 0:
+    #     sleep_time-=1
+    #     back(400)
+    # sleep_time = 20
+    # while sleep_time >= 0:
+    #     sleep_time-=1
+    #     back(600)
 
 
 def left(speed):
@@ -339,7 +373,7 @@ def check_time():
         check_right_time += 1
     else:
         check_right_time = 0
-    if unify_all < 0:
+    if unify_all < -450:
         down = 1
         # check_down_time += 1
     else:
@@ -352,7 +386,7 @@ def check_time():
     if escape_flag:
         escape_time -= 1
         if escape_time <= 0:
-            escape_time = 200
+            escape_time = 150
             escape_flag = 0
 
 
@@ -385,7 +419,7 @@ def down_act():
 
 
 def up_act():
-    global tai_flag, escape_flag, check_left_time, check_right_time, t, io_data
+    global tai_flag, escape_flag
     up.CDS_SetAngle(3, 620, 700)  # 最低
     up.CDS_SetAngle(4, 180, 700)
     tai_flag = 1
@@ -393,64 +427,55 @@ def up_act():
         if io_data[0] == 0 and io_data[1] == 0:
             straight_if()
         elif io_data[0] == 1 and io_data[1] == 0:
-            right(600)
+            right(500)
         elif io_data[0] == 0 and io_data[1] == 1:
-            left(600)
+            left(500)
         else:
-            if check_right_time >= 5 and escape_flag == 0:
-                while True:
-                    t += 1
-                    adc_value = up.ADC_Get_All_Channle()
-                    io_data = get_io_data(up)
-                    right(800)
-                    if io_data[0] == 0 and io_data[1] == 0 or t >= 300:
-                        t = 0
-                        check_right_time = 0
-                        break
-                    if adc_value[0] + adc_value[1] + adc_value[2] < 860:
-                        t = 0
-                        check_right_time = 0
-                        break
-            elif check_left_time >= 5 and escape_flag == 0:
-                while True:
-                    t += 1
-                    adc_value = up.ADC_Get_All_Channle()
-                    io_data = get_io_data(up)
-                    left(800)
-                    if io_data[0] == 0 and io_data[1] == 0 or t >= 300:
-                        t = 0
-                        check_left_time = 0
-                        break
-                    if adc_value[0] + adc_value[1] + adc_value[2] < 860:
-                        t = 0
-                        check_left_time = 0
-                        break
-            else:
-                straight_if()
+            search_left_and_right()
     elif io_data[3] == 1 and io_data[4] == 0:
-        stop()
-        time.sleep(0.05)
-        back(200)
-        time.sleep(0.05)
-        back(400)
-        time.sleep(0.05)
-        back(600)
-        time.sleep(0.2)
+        back_sleep()
         right(1000)
         time.sleep(0.2)
     elif io_data[3] == 0 and io_data[4] == 1:
-        stop()
-        time.sleep(0.05)
-        back(200)
-        time.sleep(0.05)
-        back(400)
-        time.sleep(0.05)
-        back(600)
-        time.sleep(0.2)
+        back_sleep()
         left(1000)
         time.sleep(0.2)
     else:
-        back(500)
+        back_sleep()
+
+
+def search_left_and_right():
+    global check_left_time, check_right_time, t, io_data, adc_value
+    if check_right_time >= 5 and escape_flag == 0:
+        while True:
+            t += 1
+            adc_value = up.ADC_Get_All_Channle()
+            io_data = get_io_data(up)
+            right(600)
+            if io_data[0] == 0 and io_data[1] == 0 or t >= 300:
+                t = 0
+                check_right_time = 0
+                break
+            if adc_value[0] + adc_value[1] + adc_value[2] < 860:
+                t = 0
+                check_right_time = 0
+                break
+    elif check_left_time >= 5 and escape_flag == 0:
+        while True:
+            t += 1
+            adc_value = up.ADC_Get_All_Channle()
+            io_data = get_io_data(up)
+            left(600)
+            if io_data[0] == 0 and io_data[1] == 0 or t >= 300:
+                t = 0
+                check_left_time = 0
+                break
+            if adc_value[0] + adc_value[1] + adc_value[2] < 860:
+                t = 0
+                check_left_time = 0
+                break
+    else:
+        straight_if()
 
 
 if __name__ == "__main__":
@@ -474,14 +499,12 @@ if __name__ == "__main__":
     # FONT_12X20  = 11
     print("test succeed")
     signal.signal(signal.SIGINT, signal_handler)
-    # target2 = threading.Thread(target=April_start_detect)
-    # target2.start()
+    target2 = threading.Thread(target=April_start_detect)
+    target2.start()
     # while True:
     #     io_data = get_io_data(up)
     #     if io_data[6] == 0 and io_data[7] == 0:
     #         break
-    # 初始化PID控制器
-    # 在控制循环中计算输出
     while True:
         adc_value = up.ADC_Get_All_Channle()
         mix_all_gray()
@@ -493,7 +516,7 @@ if __name__ == "__main__":
 
         up.LCD_SetFont(up.FONT_12X20)
         up.LCD_SetForeColor(up.COLOR_YELLOW)
-        # up.LCD_PutString(0, 0, f'{unify_adc_0:.2f}')
+        up.LCD_PutString(0, 0, f'{unify_all:.2f}')
         # up.LCD_PutString(0, 20, f'{unify_adc_1:.2f}')
         # up.LCD_PutString(0, 40, f'{unify_adc_2:.2f}')
         # print(unify_all)
