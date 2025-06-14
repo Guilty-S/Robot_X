@@ -19,6 +19,25 @@ zha_dan_kuai = 2  # 炸弹块
 index = 0
 flag = 0
 cnt = 0
+dead_area = 400
+
+tai_flag = 0
+tai_flag_time = 0
+escape_flag = 0
+escape_time = 200
+down = 0
+up_flag = 0
+t = 0
+check_right_time = 0
+check_left_time = 0
+check_down_time = 0
+adc_last_0 = 0
+adc_last_1 = 0
+adc_last_2 = 0
+adc_last_3 = 0
+adc_last_4 = 0
+unify_all = 0
+buffer = 0
 
 
 class PIDController:
@@ -171,38 +190,46 @@ def April_start_detect():
     cv2.destroyAllWindows()
 
 
-# def April_tag_move():
-#     if distance > 200:
-#         if mid < 160 - tag_width:
-#             left_low_low()
-#             # print("左")
-#         elif mid > 160 + tag_width:
-#             right_low_low()
-#             # print("右")
-#         else:
-#             straight_if()
-#             # print("前进")
+def April_tag_move():
+    if distance > 200:
+        if mid < 160 - tag_width:
+            left(400)
+            # print("左")
+        elif mid > 160 + tag_width:
+            right(400)
+            # print("右")
+        else:
+            straight_if()
+            # print("前进")
 
 
 def April_tag_move_pid():
-    pid = PIDController(Kp=5.0, Ki=0, Kd=0.5, gkd=0.0, out_limit=1000.0)
+    pid = PIDController(Kp=10, Ki=0, Kd=5, gkd=0.0, out_limit=1000.0)
     control_output = pid.calculate(160, mid)  # kp 0~10 kd
-    if mid < 160 - tag_width:
-        up.CDS_SetSpeed(1, control_output)
-        up.CDS_SetSpeed(2, -control_output)
-    elif mid > 160 + tag_width:
-        up.CDS_SetSpeed(1, control_output)
-        up.CDS_SetSpeed(2, -control_output)
-    else:
+    if mid > 160 - tag_width or mid < 160 + tag_width:
         straight_if()
+    else:
+        if control_output > 0:
+            control_output_final = control_output + dead_area
+        else:
+            control_output_final = control_output - dead_area
+        if control_output_final > 1000:
+            up.CDS_SetSpeed(1, -1000)
+            up.CDS_SetSpeed(2, 1000)
+        elif control_output_final < -1000:
+            up.CDS_SetSpeed(1, 1000)
+            up.CDS_SetSpeed(2, -1000)
+        else:
+            up.CDS_SetSpeed(1, -control_output_final)
+            up.CDS_SetSpeed(2, control_output_final)
 
 
-# def April_tag_escape():
-#     if distance < 200:
-#         if mid < 160:
-#             right()
-#         else:
-#             left()
+def April_tag_escape():
+    if distance < 200:
+        if mid < 160:
+            right(1000)
+        else:
+            left(1000)
 
 
 def signal_handler(handler_signal, handler_frame):
@@ -216,7 +243,12 @@ def straight(speed_1, speed_2):
 
 
 def straight_if():
-    straight(600, 600)
+    global buffer
+    # if buffer > 0:
+    #     straight(400, 400)
+    #     buffer -= 1
+    # else:
+    straight(700, 700)
 
 
 def stop():
@@ -249,7 +281,7 @@ def get_io_data(up):
     return io_data
 
 
-def mix_all_gray():
+def mix_all_gray():  # 低通滤波
     alpha = 0.7
     global adc_last_0
     global adc_last_1
@@ -286,15 +318,139 @@ def unify_all_gray():
     global unify_adc_2
     global unify_adc_3
     global unify_adc_4
+    global unify_all
     unify_adc_0 = (unify_gray(mix_adc_0, 437, 1011))
     unify_adc_1 = (unify_gray(mix_adc_1, 296, 732))
     unify_adc_2 = (unify_gray(mix_adc_2, 322, 680))
     unify_adc_3 = (unify_gray(mix_adc_3, 377, 840))
     unify_adc_4 = (unify_gray(mix_adc_4, 333, 780))
-    global unify_all
     unify_all = unify_adc_0 + unify_adc_1 + unify_adc_2 + unify_adc_3 + unify_adc_4
     # unify_all = adc_value[0]+adc_value[1]+adc_value[2]+adc_value[3]+adc_value[4]
     # print(unify_all)
+
+
+def check_time():
+    global check_left_time, check_right_time, check_down_time, down, escape_time, escape_flag
+    if io_data[6] == 0 and io_data[7] == 1:
+        check_left_time += 1
+    else:
+        check_left_time = 0
+    if io_data[6] == 1 and io_data[7] == 0:
+        check_right_time += 1
+    else:
+        check_right_time = 0
+    if unify_all < 0:
+        down = 1
+        # check_down_time += 1
+    else:
+        # check_down_time = 0
+        down = 0
+    #
+    # if not down:
+    #     if check_down_time >= 2:
+    #         down = 1
+    if escape_flag:
+        escape_time -= 1
+        if escape_time <= 0:
+            escape_time = 200
+            escape_flag = 0
+
+
+def down_act():
+    global tai_flag, up_flag, buffer, down
+    if tai_flag:
+        up.CDS_SetAngle(3, 205, 700)  # 最高
+        up.CDS_SetAngle(4, 600, 700)
+        time.sleep(1)
+        tai_flag = 0
+    if up_flag:
+        back(800)
+        time.sleep(0.3)
+        up.CDS_SetAngle(3, 620, 700)  # 最低
+        up.CDS_SetAngle(4, 180, 700)
+        time.sleep(1)
+        stop()
+        time.sleep(0.2)
+        up_flag = 0
+        tai_flag = 1
+        down = 0
+        buffer = 20
+    else:
+        up.CDS_SetAngle(3, 205, 700)  # 最高
+        up.CDS_SetAngle(4, 600, 700)
+        if io_data[0] == 0 and io_data[1] == 0:
+            up_flag = 1
+        else:
+            right(700)
+
+
+def up_act():
+    global tai_flag, escape_flag, check_left_time, check_right_time, t, io_data
+    up.CDS_SetAngle(3, 620, 700)  # 最低
+    up.CDS_SetAngle(4, 180, 700)
+    tai_flag = 1
+    if io_data[3] == 0 and io_data[4] == 0:
+        if io_data[0] == 0 and io_data[1] == 0:
+            straight_if()
+        elif io_data[0] == 1 and io_data[1] == 0:
+            right(600)
+        elif io_data[0] == 0 and io_data[1] == 1:
+            left(600)
+        else:
+            if check_right_time >= 5 and escape_flag == 0:
+                while True:
+                    t += 1
+                    adc_value = up.ADC_Get_All_Channle()
+                    io_data = get_io_data(up)
+                    right(800)
+                    if io_data[0] == 0 and io_data[1] == 0 or t >= 300:
+                        t = 0
+                        check_right_time = 0
+                        break
+                    if adc_value[0] + adc_value[1] + adc_value[2] < 860:
+                        t = 0
+                        check_right_time = 0
+                        break
+            elif check_left_time >= 5 and escape_flag == 0:
+                while True:
+                    t += 1
+                    adc_value = up.ADC_Get_All_Channle()
+                    io_data = get_io_data(up)
+                    left(800)
+                    if io_data[0] == 0 and io_data[1] == 0 or t >= 300:
+                        t = 0
+                        check_left_time = 0
+                        break
+                    if adc_value[0] + adc_value[1] + adc_value[2] < 860:
+                        t = 0
+                        check_left_time = 0
+                        break
+            else:
+                straight_if()
+    elif io_data[3] == 1 and io_data[4] == 0:
+        stop()
+        time.sleep(0.05)
+        back(200)
+        time.sleep(0.05)
+        back(400)
+        time.sleep(0.05)
+        back(600)
+        time.sleep(0.2)
+        right(1000)
+        time.sleep(0.2)
+    elif io_data[3] == 0 and io_data[4] == 1:
+        stop()
+        time.sleep(0.05)
+        back(200)
+        time.sleep(0.05)
+        back(400)
+        time.sleep(0.05)
+        back(600)
+        time.sleep(0.2)
+        left(1000)
+        time.sleep(0.2)
+    else:
+        back(500)
 
 
 if __name__ == "__main__":
@@ -324,23 +480,6 @@ if __name__ == "__main__":
     #     io_data = get_io_data(up)
     #     if io_data[6] == 0 and io_data[7] == 0:
     #         break
-    tai_flag = 1
-    tai_flag_time = 0
-    escape_flag = 0
-    escape_time = 20
-    down = 0
-    up_flag = 0
-    t = 0
-    check_right_time = 0
-    check_left_time = 0
-    check_down_time = 0
-    adc_last_0 = 0
-    adc_last_1 = 0
-    adc_last_2 = 0
-    adc_last_3 = 0
-    adc_last_4 = 0
-    unify_all = 0
-    buffer = 30
     # 初始化PID控制器
     # 在控制循环中计算输出
     while True:
@@ -358,85 +497,18 @@ if __name__ == "__main__":
         # up.LCD_PutString(0, 20, f'{unify_adc_1:.2f}')
         # up.LCD_PutString(0, 40, f'{unify_adc_2:.2f}')
         # print(unify_all)
-        # up.LCD_PutString(0, 40, f'{unify_adc_0 + unify_adc_1 + unify_adc_2}')
-        # up.LCD_PutString(0, 20, f'{adc_value[0]+adc_value[1]+adc_value[2]+adc_value[3]+adc_value[4]}')
-        # up.LCD_PutString(0, 20, f'{unify_adc_0 + unify_adc_1 + unify_adc_2 + unify_adc_3 + unify_adc_4}')
-        # up.LCD_PutString(0, 20, f'{unify_adc_0}')
-        # up.LCD_PutString(60, 20, f'{unify_adc_1}')
-        # up.LCD_PutString(0, 40, f'{unify_adc_2}')
         up.LCD_Refresh()
         # print(f'unify_adc{unify_all}')
         # print(f'unify_adc{unify_adc_0, unify_adc_1, unify_adc_2, unify_adc_3, unify_adc_4}')
-        if io_data[6] == 0 and io_data[7] == 1:
-            check_left_time += 1
-        else:
-            check_left_time = 0
-        if io_data[6] == 1 and io_data[7] == 0:
-            check_right_time += 1
-        else:
-            check_right_time = 0
-        if unify_all < -450:
-            check_down_time += 1
-        else:
-            check_down_time = 0
-        if check_down_time >= 5:
-            down = 1
-        else:
-            down = 0
+
         # up.CDS_SetAngle(3, 620, 700)  # 最低
         # up.CDS_SetAngle(4, 180, 700)
         # up.CDS_SetAngle(3, 205, 700)  # 最高
-        # up.CDS_SetAngle(4, 580, 700)
+        # up.CDS_SetAngle(4, 600, 700)
 
         # 0、1 正前方红外   3、4斜向下   6、7左右
-        # if escape_flag:
-        #     escape_time -= 1
-        #     if escape_time <= 0:
-        #         escape_time = 200
-        #         escape_flag = 0
+        check_time()
         if down:
-            if tai_flag:
-                up.CDS_SetAngle(3, 205, 700)  # 最高
-                up.CDS_SetAngle(4, 580, 700)
-                time.sleep(1)
-                tai_flag = 0
-            if up_flag:
-                back(700)
-                time.sleep(0.3)
-                up.CDS_SetAngle(3, 620, 700)  # 最低
-                up.CDS_SetAngle(4, 180, 700)
-                time.sleep(1.5)
-                up_flag = 0
-                tai_flag = 1
-                buffer = 60
-            else:
-                up.CDS_SetAngle(3, 205, 700)  # 最高
-                up.CDS_SetAngle(4, 580, 700)
-                if io_data[0] == 0 and io_data[1] == 0:
-                    up_flag = 1
-                else:
-                    right(600)
+            down_act()
         else:
-            up.CDS_SetAngle(3, 620, 700)  # 最低
-            up.CDS_SetAngle(4, 180, 700)
-            tai_flag = 1
-            if io_data[3] == 0 and io_data[4] == 0:
-                straight(700, 700)
-            elif io_data[3] == 1 and io_data[4] == 0:
-                back(400)
-                time.sleep(0.1)
-                back(800)
-                time.sleep(0.2)
-                right(1000)
-                time.sleep(0.2)
-            elif io_data[3] == 0 and io_data[4] == 1:
-                back(400)
-                time.sleep(0.1)
-                back(800)
-                time.sleep(0.2)
-                left(1000)
-                time.sleep(0.2)
-            else:
-                back(400)
-                time.sleep(0.1)
-
+            up_act()
