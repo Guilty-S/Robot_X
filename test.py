@@ -25,7 +25,8 @@ dead_area = 400
 
 tai_flag = 0
 tai_flag_time = 0
-escape_flag = 0
+escape_flag_right = 0
+escape_flag_left = 0
 escape_time = 200
 down = 0
 up_flag = 0
@@ -257,11 +258,15 @@ def April_tag_move_pid():
 
 
 def April_tag_escape():
+    global escape_flag_right,escape_flag_left
     if distance < 200:
         if mid < 160:
             right(1000)
+            escape_flag_left = 1
         else:
             left(1000)
+            escape_flag_right = 1
+
 
 
 def signal_handler(handler_signal, handler_frame):
@@ -394,12 +399,12 @@ def unify_all_gray():
 
 
 def check_time():
-    global check_left_time, check_right_time, check_down_time, down, escape_time, escape_flag
-    if io_data[6] == 0 and io_data[7] == 1:
+    global check_left_time, check_right_time, check_down_time, down, escape_time, escape_flag_right,escape_flag_left
+    if io_data[6] == 0:
         check_left_time += 1
     else:
         check_left_time = 0
-    if io_data[6] == 1 and io_data[7] == 0:
+    if io_data[7] == 0:
         check_right_time += 1
     else:
         check_right_time = 0
@@ -413,11 +418,12 @@ def check_time():
     # if not down:
     #     if check_down_time >= 2:
     #         down = 1
-    if escape_flag:
+    if escape_flag_left or escape_flag_right:
         escape_time -= 1
         if escape_time <= 0:
             escape_time = 150
-            escape_flag = 0
+            escape_flag_left = 0
+            escape_flag_right = 0
 
 
 def down_act():
@@ -428,6 +434,8 @@ def down_act():
         time.sleep(1)
         tai_flag = 0
     if up_flag:
+        up.CDS_SetAngle(3, 450, 700)  # 最高
+        up.CDS_SetAngle(4, 350, 700)
         back(800)
         time.sleep(0.3)
         up.CDS_SetAngle(3, 620, 700)  # 最低
@@ -460,7 +468,6 @@ def up_act():
                 April_tag_move()
             else:
                 April_tag_escape()
-                escape_flag = 1
         else:
              if io_data[0] == 0 and io_data[1] == 0:
                  straight_if()
@@ -484,7 +491,7 @@ def up_act():
 
 def search_left_and_right():
     global check_left_time, check_right_time, t, io_data, adc_value
-    if check_right_time >= 5 and escape_flag == 0:
+    if check_right_time >= 5 and escape_flag_right == 0:
         while True:
             t += 1
             adc_value = up.ADC_Get_All_Channle()
@@ -498,7 +505,7 @@ def search_left_and_right():
                 t = 0
                 check_right_time = 0
                 break
-    elif check_left_time >= 5 and escape_flag == 0:
+    elif check_left_time >= 5 and escape_flag_left == 0:
         while True:
             t += 1
             adc_value = up.ADC_Get_All_Channle()
