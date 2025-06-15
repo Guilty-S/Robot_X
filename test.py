@@ -150,6 +150,38 @@ class ApriltagDetect:
         else:
             tag_flag = 0
 
+    def get_distance(self, H, t):
+        ss = 0.5
+        src = np.array([[-ss, -ss, 0],
+                        [ss, -ss, 0],
+                        [ss, ss, 0],
+                        [-ss, ss, 0]])
+        Kmat = np.array([[700, 0, 0],
+                         [0, 700, 0],
+                         [0, 0, 1]]) * 1.0
+        disCoeffs = np.zeros([4, 1]) * 1.0
+        ipoints = np.array([[-1, -1],
+                            [1, -1],
+                            [1, 1],
+                            [-1, 1]])
+        for point in ipoints:
+            x = point[0]
+            y = point[1]
+            z = H[2, 0] * x + H[2, 1] * y + H[2, 2]
+            point[0] = (H[0, 0] * x + H[0, 1] * y + H[0, 2]) / z * 1.0
+            point[1] = (H[1, 0] * x + H[1, 1] * y + H[1, 2]) / z * 1.0
+        campoint = ipoints * 1.0
+        opoints = np.array([[-1.0, -1.0, 0.0],
+                            [1.0, -1.0, 0.0],
+                            [1.0, 1.0, 0.0],
+                            [-1.0, 1.0, 0.0]])
+        opoints = opoints * 0.5
+        rate, rvec, tvec = cv2.solvePnP(opoints, campoint, Kmat, disCoeffs)
+        point, jac = cv2.projectPoints(src, np.zeros(rvec.shape), tvec, Kmat, disCoeffs)
+        points = np.int32(np.reshape(point, [4, 2]))
+        distance = np.abs(t / np.linalg.norm(points[0] - points[1]))
+        return distance
+
 
 def April_start_detect():
     global frame
@@ -160,7 +192,6 @@ def April_start_detect():
     ad = ApriltagDetect()
     while True:
         ret, frame = cap.read()
-        frame = cv2.rotate(frame, cv2.ROTATE_180)
         ad.update_frame(frame)
         if ret is False:
             cap.release()
@@ -185,7 +216,7 @@ def April_start_detect():
         #             print("敌方")
         #         elif tags[index].tag_id == 0:
         #             print("中立")
-        cv2.imshow("img", frame)
+        # cv2.imshow("img", frame)
         if cv2.waitKey(1) & 0xff == ord('q'):
             break
     cap.release()
@@ -193,22 +224,21 @@ def April_start_detect():
 
 
 def April_tag_move():
-    if distance > 200:
-        if mid < 160 - tag_width:
-            left(400)
-            # print("左")
-        elif mid > 160 + tag_width:
-            right(400)
-            # print("右")
-        else:
-            straight_if()
-            # print("前进")
+    if mid < 160 - tag_width / 3:
+        left(600)
+        # print("左")
+    elif mid > 160 + tag_width / 3:
+        right(600)
+        # print("右")
+    else:
+        straight_if()
+        # print("前进")
 
 
 def April_tag_move_pid():
-    pid = PIDController(Kp=10, Ki=0, Kd=5, gkd=0.0, out_limit=1000.0)
+    pid = PIDController(Kp=10, Ki=0, Kd=0, gkd=0.0, out_limit=1000.0)
     control_output = pid.calculate(160, mid)  # kp 0~10 kd
-    if mid > 160 - tag_width or mid < 160 + tag_width:
+    if mid > 160 - tag_width / 3 and mid < 160 + tag_width / 3:
         straight_if()
     else:
         if control_output > 0:
@@ -250,10 +280,10 @@ def straight_if():
     #     straight(400, 400)
     #     buffer -= 1
     # else:
-    if unify_all >3500:
-        straight(1000,1000)
-    elif unify_all >3000:
-        straight(700,700)
+    if unify_all > 3500:
+        straight(1000, 1000)
+    elif unify_all > 3000:
+        straight(700, 700)
     else:
         straight(600, 600)
 
@@ -276,7 +306,7 @@ def back_sleep():
     back(400)
     time.sleep(0.05)
     back(600)
-    time.sleep(0.1)
+    time.sleep(0.2)
     # sleep_time = 20
     # while sleep_time >= 0:
     #     sleep_time-=1
@@ -423,15 +453,23 @@ def up_act():
     up.CDS_SetAngle(3, 620, 700)  # 最低
     up.CDS_SetAngle(4, 180, 700)
     tai_flag = 1
+
     if io_data[3] == 0 and io_data[4] == 0:
-        if io_data[0] == 0 and io_data[1] == 0:
-            straight_if()
-        elif io_data[0] == 1 and io_data[1] == 0:
-            right(500)
-        elif io_data[0] == 0 and io_data[1] == 1:
-            left(500)
+        if tag_flag:
+            if tag_safe:
+                April_tag_move()
+            else:
+                April_tag_escape()
+                escape_flag = 1
         else:
-            search_left_and_right()
+             if io_data[0] == 0 and io_data[1] == 0:
+                 straight_if()
+             elif io_data[0] == 1 and io_data[1] == 0:
+                 right(500)
+             elif io_data[0] == 0 and io_data[1] == 1:
+                 left(500)
+             else:
+                 search_left_and_right()
     elif io_data[3] == 1 and io_data[4] == 0:
         back_sleep()
         right(1000)
