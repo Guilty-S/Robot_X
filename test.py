@@ -193,13 +193,14 @@ def April_start_detect():
     ad = ApriltagDetect()
     while True:
         ret, frame = cap.read()
+        frame = cv2.rotate(frame, cv2.ROTATE_180)
         ad.update_frame(frame)
         if ret is False:
             cap.release()
-            time.sleep(0.1)
+            time.sleep(0.2)
             print("reconnect to camera")
             subprocess.check_call("sudo modprobe -rf uvcvideo", shell=True)
-            time.sleep(0.4)
+            time.sleep(0.5)
             subprocess.check_call("sudo modprobe uvcvideo", shell=True)
             time.sleep(0.2)
             cap = cv2.VideoCapture('/dev/video0')
@@ -285,12 +286,12 @@ def straight_if():
     #     straight(400, 400)
     #     buffer -= 1
     # else:
-    if unify_all > 3500:
-        straight(1000, 1000)
-    elif unify_all > 3000:
-        straight(700, 700)
-    else:
-        straight(600, 600)
+    # if unify_all > 3500:
+    #     straight(1000, 1000)
+    # elif unify_all > 3000:
+    #     straight(700, 700)
+    # else:
+    straight(600, 600)
 
 
 def stop():
@@ -305,13 +306,11 @@ def back(speed):
 
 def back_sleep():
     stop()
-    time.sleep(0.05)
-    back(200)
-    time.sleep(0.05)
+    time.sleep(0.1)
     back(400)
     time.sleep(0.05)
     back(600)
-    time.sleep(0.2)
+    time.sleep(0.05)
     # sleep_time = 20
     # while sleep_time >= 0:
     #     sleep_time-=1
@@ -408,7 +407,7 @@ def check_time():
         check_right_time += 1
     else:
         check_right_time = 0
-    if unify_all < -450:
+    if unify_all < -400:
         down = 1
         # check_down_time += 1
     else:
@@ -421,7 +420,7 @@ def check_time():
     if escape_flag_left or escape_flag_right:
         escape_time -= 1
         if escape_time <= 0:
-            escape_time = 150
+            escape_time = 50
             escape_flag_left = 0
             escape_flag_right = 0
 
@@ -434,10 +433,10 @@ def down_act():
         time.sleep(1)
         tai_flag = 0
     if up_flag:
-        up.CDS_SetAngle(3, 450, 700)  # 最高
-        up.CDS_SetAngle(4, 350, 700)
+        up.CDS_SetAngle(3, 400, 700)  #
+        up.CDS_SetAngle(4, 380, 700)
         back(800)
-        time.sleep(0.3)
+        time.sleep(0.4)
         up.CDS_SetAngle(3, 620, 700)  # 最低
         up.CDS_SetAngle(4, 180, 700)
         time.sleep(1)
@@ -469,11 +468,11 @@ def up_act():
             else:
                 April_tag_escape()
         else:
-             if io_data[0] == 0 and io_data[1] == 0:
+             if io_data[0] == 0 and io_data[1] == 0 and not escape_flag_left and not escape_flag_right:
                  straight_if()
-             elif io_data[0] == 1 and io_data[1] == 0:
+             elif io_data[0] == 1 and io_data[1] == 0 and not escape_flag_left and not escape_flag_right:
                  right(500)
-             elif io_data[0] == 0 and io_data[1] == 1:
+             elif io_data[0] == 0 and io_data[1] == 1 and not escape_flag_left and not escape_flag_right:
                  left(500)
              else:
                  search_left_and_right()
@@ -487,6 +486,8 @@ def up_act():
         time.sleep(0.2)
     else:
         back_sleep()
+        left(1000)
+        time.sleep(0.2)
 
 
 def search_left_and_right():
