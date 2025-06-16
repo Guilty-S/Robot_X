@@ -304,12 +304,18 @@ def back(speed):
 
 
 def back_sleep():
+    # stop()
+    # time.sleep(0.1)
+    # back(400)
+    # time.sleep(0.05)
+    # back(600)
+    # time.sleep(0.05)
     stop()
-    time.sleep(0.1)
+    while_sleep(1)
     back(400)
-    time.sleep(0.05)
+    while_sleep(1)
     back(600)
-    time.sleep(0.05)
+    while_sleep(1)
     # sleep_time = 20
     # while sleep_time >= 0:
     #     sleep_time-=1
@@ -457,7 +463,7 @@ def down_act():
 
 
 def up_act():
-    global tai_flag, escape_flag
+    global tai_flag
     up.CDS_SetAngle(3, 620, 700)  # 最低
     up.CDS_SetAngle(4, 180, 700)
     tai_flag = 1
@@ -493,7 +499,7 @@ def up_act():
 
 def search_left_and_right():
     global check_left_time, check_right_time, t, io_data, adc_value
-    if check_right_time >= 5 and escape_flag_right == 0:
+    if check_right_time >= 3 and escape_flag_right == 0:
         while True:
             t += 1
             adc_value = up.ADC_Get_All_Channle()
@@ -507,7 +513,7 @@ def search_left_and_right():
                 t = 0
                 check_right_time = 0
                 break
-    elif check_left_time >= 5 and escape_flag_left == 0:
+    elif check_left_time >= 3 and escape_flag_left == 0:
         while True:
             t += 1
             adc_value = up.ADC_Get_All_Channle()
@@ -523,6 +529,23 @@ def search_left_and_right():
                 break
     else:
         straight_if()
+
+
+def search_inf():
+    global adc_value, io_data
+    adc_value = up.ADC_Get_All_Channle()
+    mix_all_gray()
+    unify_all_gray()
+    io_data = get_io_data(up)
+
+
+def while_sleep(sleep_t):
+    global cnt
+    while sleep_t >= 0:
+        cnt += 1
+        if cnt % 50000 == 0:  # 0.1秒钟打印一次
+            cnt = 0
+            sleep_t -= 1
 
 
 if __name__ == "__main__":
@@ -546,14 +569,14 @@ if __name__ == "__main__":
     # FONT_12X20  = 11
     print("test succeed")
     signal.signal(signal.SIGINT, signal_handler)
+    # target3 = threading.Thread(target=search_inf)
+    # target3.start()
     # target2 = threading.Thread(target=April_start_detect)
     # target2.start()
     # while True:
     #     io_data = get_io_data(up)
     #     if io_data[6] == 0 and io_data[7] == 0:
     #         break
-    k = 100000
-    cnt=0
     while True:
         adc_value = up.ADC_Get_All_Channle()
         mix_all_gray()
@@ -577,16 +600,10 @@ if __name__ == "__main__":
         # up.CDS_SetAngle(4, 180, 700)
         # up.CDS_SetAngle(3, 205, 700)  # 最高
         # up.CDS_SetAngle(4, 600, 700)
-
+        # print(mix_adc_0)
         # 0、1 正前方红外   3、4斜向下   6、7左右
-        while k >= 0:
-            k -= 1
-        cnt+=1
-        k = 100000
-        print(cnt)
-
-    # check_time()
-    # if down:
-    #     down_act()
-    # else:
-    #     up_act()
+        check_time()
+        if down:
+            down_act()
+        else:
+            up_act()
