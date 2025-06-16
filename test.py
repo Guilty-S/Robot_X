@@ -15,9 +15,12 @@ mid = 0
 tag_width = 0
 tags = []
 distance = 0
+# di_fang_kuai = 1  # 敌方块
+# zhong_li_kuai = 0  # 中立块
+# zha_dan_kuai = 2  # 炸弹块
 di_fang_kuai = 1  # 敌方块
-zhong_li_kuai = 0  # 中立块
-zha_dan_kuai = 2  # 炸弹块
+zhong_li_kuai = 2  # 中立块
+zha_dan_kuai = 0  # 炸弹块
 index = 0
 flag = 0
 cnt = 0
@@ -28,7 +31,7 @@ tai_flag_time = 0
 escape_flag_right = 0
 escape_flag_left = 0
 escape_time = 200
-down = 0
+down = 1
 up_flag = 0
 t = 0
 check_right_time = 0
@@ -227,10 +230,10 @@ def April_start_detect():
 
 def April_tag_move():
     if mid < 160 - tag_width / 3:
-        left(600)
+        left(500)
         # print("左")
     elif mid > 160 + tag_width / 3:
-        right(600)
+        right(500)
         # print("右")
     else:
         straight_if()
@@ -285,12 +288,12 @@ def straight_if():
     #     straight(400, 400)
     #     buffer -= 1
     # else:
-    # if unify_all > 3500:
-    #     straight(1000, 1000)
-    # elif unify_all > 3000:
-    #     straight(700, 700)
-    # else:
-    straight(600, 600)
+    if unify_all > 3500:
+        straight(900, 900)
+    elif unify_all > 2800:
+        straight(700, 700)
+    else:
+        straight(500, 500)
 
 
 def stop():
@@ -311,11 +314,11 @@ def back_sleep():
     # back(600)
     # time.sleep(0.05)
     stop()
-    while_sleep(1)
+    while_sleep(10)
     back(400)
-    while_sleep(1)
+    while_sleep(5)
     back(600)
-    while_sleep(1)
+    while_sleep(5)
     # sleep_time = 20
     # while sleep_time >= 0:
     #     sleep_time-=1
@@ -412,16 +415,15 @@ def check_time():
         check_right_time += 1
     else:
         check_right_time = 0
-    if unify_all < 100:
-        down = 1
-        # check_down_time += 1
+    if unify_all < -200:
+        check_down_time += 1
     else:
-        # check_down_time = 0
+        check_down_time = 0
         down = 0
     #
-    # if not down:
-    #     if check_down_time >= 2:
-    #         down = 1
+    if not down:
+        if check_down_time >= 100:
+            down = 1
     if escape_flag_left or escape_flag_right:
         escape_time -= 1
         if escape_time <= 0:
@@ -441,14 +443,14 @@ def down_act():
         back(400)
         up.CDS_SetAngle(3, 400, 700)  #
         up.CDS_SetAngle(4, 380, 700)
-        time.sleep(0.2)
-        back(800)
         time.sleep(0.4)
+        back(800)
+        time.sleep(0.7)
         up.CDS_SetAngle(3, 620, 700)  # 最低
         up.CDS_SetAngle(4, 180, 700)
-        time.sleep(1)
+        time.sleep(0.7)
         stop()
-        time.sleep(0.2)
+        time.sleep(0.3)
         up_flag = 0
         tai_flag = 1
         down = 0
@@ -475,26 +477,26 @@ def up_act():
             else:
                 April_tag_escape()
         else:
-            if io_data[0] == 0 and io_data[1] == 0 and not escape_flag_left and not escape_flag_right:
+            if io_data[0] == 0 and io_data[1] == 0:
                 straight_if()
-            elif io_data[0] == 1 and io_data[1] == 0 and not escape_flag_left and not escape_flag_right:
+            elif io_data[0] == 1 and io_data[1] == 0 and not escape_flag_right:
                 right(500)
-            elif io_data[0] == 0 and io_data[1] == 1 and not escape_flag_left and not escape_flag_right:
+            elif io_data[0] == 0 and io_data[1] == 1 and not escape_flag_left:
                 left(500)
             else:
                 search_left_and_right()
     elif io_data[3] == 1 and io_data[4] == 0:
         back_sleep()
         right(1000)
-        time.sleep(0.2)
+        while_sleep(20)
     elif io_data[3] == 0 and io_data[4] == 1:
         back_sleep()
         left(1000)
-        time.sleep(0.2)
+        while_sleep(20)
     else:
         back_sleep()
         left(1000)
-        time.sleep(0.2)
+        while_sleep(20)
 
 
 def search_left_and_right():
@@ -509,10 +511,6 @@ def search_left_and_right():
                 t = 0
                 check_right_time = 0
                 break
-            if adc_value[0] + adc_value[1] + adc_value[2] < 860:
-                t = 0
-                check_right_time = 0
-                break
     elif check_left_time >= 3 and escape_flag_left == 0:
         while True:
             t += 1
@@ -520,10 +518,6 @@ def search_left_and_right():
             io_data = get_io_data(up)
             left(600)
             if io_data[0] == 0 and io_data[1] == 0 or t >= 300:
-                t = 0
-                check_left_time = 0
-                break
-            if adc_value[0] + adc_value[1] + adc_value[2] < 860:
                 t = 0
                 check_left_time = 0
                 break
@@ -543,9 +537,26 @@ def while_sleep(sleep_t):
     global cnt
     while sleep_t >= 0:
         cnt += 1
-        if cnt % 50000 == 0:  # 0.1秒钟打印一次
+        if cnt % 5000 == 0:  # 0.01秒钟打印一次
             cnt = 0
+            check_time()
             sleep_t -= 1
+        if io_data[0] == 0 or io_data[1] == 0 or io_data[6] == 0 or io_data[7] == 0:
+            break
+
+
+def go_around(go_t):
+    while go_t > 0:
+        go_t -= 1
+        if io_data[3] == 0 and io_data[4] == 0:
+            straight_if()
+        elif io_data[3] == 1 and io_data[4] == 0 and not escape_flag_right:
+            right(500)
+        elif io_data[3] == 0 and io_data[4] == 1 and not escape_flag_left:
+            left(500)
+        else:
+            back(500)
+            time.sleep(0.5)
 
 
 if __name__ == "__main__":
@@ -569,14 +580,15 @@ if __name__ == "__main__":
     # FONT_12X20  = 11
     print("test succeed")
     signal.signal(signal.SIGINT, signal_handler)
+    target2 = threading.Thread(target=April_start_detect)
+    target2.start()
     # target3 = threading.Thread(target=search_inf)
     # target3.start()
-    # target2 = threading.Thread(target=April_start_detect)
-    # target2.start()
     # while True:
     #     io_data = get_io_data(up)
     #     if io_data[6] == 0 and io_data[7] == 0:
     #         break
+    # go_around(1000)
     while True:
         adc_value = up.ADC_Get_All_Channle()
         mix_all_gray()
@@ -602,6 +614,7 @@ if __name__ == "__main__":
         # up.CDS_SetAngle(4, 600, 700)
         # print(mix_adc_0)
         # 0、1 正前方红外   3、4斜向下   6、7左右
+        # print(unify_all)
         check_time()
         if down:
             down_act()
