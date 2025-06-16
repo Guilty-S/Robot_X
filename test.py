@@ -259,7 +259,7 @@ def April_tag_move_pid():
 
 
 def April_tag_escape():
-    global escape_flag_right,escape_flag_left
+    global escape_flag_right, escape_flag_left
     if distance < 200:
         if mid < 160:
             right(1000)
@@ -267,7 +267,6 @@ def April_tag_escape():
         else:
             left(1000)
             escape_flag_right = 1
-
 
 
 def signal_handler(handler_signal, handler_frame):
@@ -398,7 +397,7 @@ def unify_all_gray():
 
 
 def check_time():
-    global check_left_time, check_right_time, check_down_time, down, escape_time, escape_flag_right,escape_flag_left
+    global check_left_time, check_right_time, check_down_time, down, escape_time, escape_flag_right, escape_flag_left
     if io_data[6] == 0:
         check_left_time += 1
     else:
@@ -407,7 +406,7 @@ def check_time():
         check_right_time += 1
     else:
         check_right_time = 0
-    if unify_all < -400:
+    if unify_all < 100:
         down = 1
         # check_down_time += 1
     else:
@@ -433,8 +432,10 @@ def down_act():
         time.sleep(1)
         tai_flag = 0
     if up_flag:
+        back(400)
         up.CDS_SetAngle(3, 400, 700)  #
         up.CDS_SetAngle(4, 380, 700)
+        time.sleep(0.2)
         back(800)
         time.sleep(0.4)
         up.CDS_SetAngle(3, 620, 700)  # 最低
@@ -468,14 +469,14 @@ def up_act():
             else:
                 April_tag_escape()
         else:
-             if io_data[0] == 0 and io_data[1] == 0 and not escape_flag_left and not escape_flag_right:
-                 straight_if()
-             elif io_data[0] == 1 and io_data[1] == 0 and not escape_flag_left and not escape_flag_right:
-                 right(500)
-             elif io_data[0] == 0 and io_data[1] == 1 and not escape_flag_left and not escape_flag_right:
-                 left(500)
-             else:
-                 search_left_and_right()
+            if io_data[0] == 0 and io_data[1] == 0 and not escape_flag_left and not escape_flag_right:
+                straight_if()
+            elif io_data[0] == 1 and io_data[1] == 0 and not escape_flag_left and not escape_flag_right:
+                right(500)
+            elif io_data[0] == 0 and io_data[1] == 1 and not escape_flag_left and not escape_flag_right:
+                left(500)
+            else:
+                search_left_and_right()
     elif io_data[3] == 1 and io_data[4] == 0:
         back_sleep()
         right(1000)
@@ -545,12 +546,14 @@ if __name__ == "__main__":
     # FONT_12X20  = 11
     print("test succeed")
     signal.signal(signal.SIGINT, signal_handler)
-    target2 = threading.Thread(target=April_start_detect)
-    target2.start()
+    # target2 = threading.Thread(target=April_start_detect)
+    # target2.start()
     # while True:
     #     io_data = get_io_data(up)
     #     if io_data[6] == 0 and io_data[7] == 0:
     #         break
+    k = 100000
+    cnt=0
     while True:
         adc_value = up.ADC_Get_All_Channle()
         mix_all_gray()
@@ -576,8 +579,14 @@ if __name__ == "__main__":
         # up.CDS_SetAngle(4, 600, 700)
 
         # 0、1 正前方红外   3、4斜向下   6、7左右
-        check_time()
-        if down:
-            down_act()
-        else:
-            up_act()
+        while k >= 0:
+            k -= 1
+        cnt+=1
+        k = 100000
+        print(cnt)
+
+    # check_time()
+    # if down:
+    #     down_act()
+    # else:
+    #     up_act()
