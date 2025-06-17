@@ -25,7 +25,7 @@ zha_dan_kuai = 0  # 炸弹块
 index = 0
 flag = 0
 cnt = 0
-dead_area = 400
+dead_area = 250
 cx = 0
 cy = 0
 
@@ -296,26 +296,30 @@ def color_blue_move():
         else:
             straight_if()
             # print("前进")
+
+
 def color_blue_move_pid():
-    global control_output,control_output_final
-    pid = PIDController(Kp=10, Ki=0, Kd=0, gkd=0.0, out_limit=1000.0)
+    global control_output, control_output_final
+    pid = PIDController(Kp=6, Ki=0, Kd=0, gkd=0.0, out_limit=1000.0)
     control_output = pid.calculate(160, cx)  # kp 0~10 kd
     if control_output > 0:
         control_output_final = control_output + dead_area
     else:
         control_output_final = control_output - dead_area
-    print(control_output_final)
+    # print(control_output_final)
 
-    if control_output_final > 1000:
-        up.CDS_SetSpeed(1, -1000)
-        up.CDS_SetSpeed(2, 1000)
-    elif control_output_final < -1000:
-        up.CDS_SetSpeed(1, 1000)
-        up.CDS_SetSpeed(2, -1000)
+    if cx >= 160 - 10 and cx < 160 + 10:
+        straight(500, 500)
     else:
-        up.CDS_SetSpeed(1, -int(control_output_final))
-        up.CDS_SetSpeed(2, int(control_output_final))
-
+        if control_output_final > 1000:
+            up.CDS_SetSpeed(1, 1000)
+            up.CDS_SetSpeed(2, -1000)
+        elif control_output_final < -1000:
+            up.CDS_SetSpeed(1, -1000)
+            up.CDS_SetSpeed(2, 1000)
+        else:
+            up.CDS_SetSpeed(1, int(control_output_final))
+            up.CDS_SetSpeed(2, -int(control_output_final))
 
 
 def April_tag_move():
@@ -689,10 +693,9 @@ if __name__ == "__main__":
         # up.CDS_SetAngle(4, 600, 700)
         # print(mix_adc_0)
         # 0、1 正前方红外   3、4斜向下   6、7左右
-        print(adc_value)
-        # check_time()
-        # if down:
-        #     down_act()
-        # else:
-        #     up_act()
-
+        # print(adc_value)
+        check_time()
+        if down:
+            down_act()
+        else:
+            up_act()
