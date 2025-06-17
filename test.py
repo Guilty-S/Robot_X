@@ -191,7 +191,7 @@ class ApriltagDetect:
 
 
 def April_start_detect():
-    global frame, blue_detected,cx,cy
+    global frame, blue_detected, cx, cy
     cap = cv2.VideoCapture('/dev/video0')
     cap.set(3, 320)
     cap.set(4, 240)
@@ -243,8 +243,8 @@ def April_start_detect():
                 cv2.putText(frame, f"({cx}, {cy})", (cx - 50, cy - 20),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
         # 显示结果
-        cv2.imshow('Camera', frame)
-        cv2.imshow('Mask', mask)
+        # cv2.imshow('Camera', frame)
+        # cv2.imshow('Mask', mask)
         # if tags:
         #     # print(tags)
         #     # print(index)
@@ -266,15 +266,56 @@ def April_start_detect():
 
 
 def color_blue_move():
-    if cx < 160 - 10:
-        left(500)
-        # print("左")
-    elif cx > 160 + 10:
-        right(500)
-        # print("右")
+    if cy > 120:
+        if cx < 160 - 50:
+            left(500)
+            # print("左")
+        elif cx > 160 + 50:
+            right(500)
+            # print("右")
+        else:
+            straight_if()
+            # print("前进")
+    elif cy > 80:
+        if cx < 160 - 30:
+            left(500)
+            # print("左")
+        elif cx > 160 + 30:
+            right(500)
+            # print("右")
+        else:
+            straight_if()
+            # print("前进")
     else:
-        straight_if()
-        # print("前进")
+        if cx < 160 - 10:
+            left(500)
+            # print("左")
+        elif cx > 160 + 10:
+            right(500)
+            # print("右")
+        else:
+            straight_if()
+            # print("前进")
+def color_blue_move_pid():
+    global control_output,control_output_final
+    pid = PIDController(Kp=10, Ki=0, Kd=0, gkd=0.0, out_limit=1000.0)
+    control_output = pid.calculate(160, cx)  # kp 0~10 kd
+    if control_output > 0:
+        control_output_final = control_output + dead_area
+    else:
+        control_output_final = control_output - dead_area
+    print(control_output_final)
+
+    if control_output_final > 1000:
+        up.CDS_SetSpeed(1, -1000)
+        up.CDS_SetSpeed(2, 1000)
+    elif control_output_final < -1000:
+        up.CDS_SetSpeed(1, 1000)
+        up.CDS_SetSpeed(2, -1000)
+    else:
+        up.CDS_SetSpeed(1, -int(control_output_final))
+        up.CDS_SetSpeed(2, int(control_output_final))
+
 
 
 def April_tag_move():
@@ -289,25 +330,25 @@ def April_tag_move():
         # print("前进")
 
 
-def April_tag_move_pid():
-    pid = PIDController(Kp=10, Ki=0, Kd=0, gkd=0.0, out_limit=1000.0)
-    control_output = pid.calculate(160, mid)  # kp 0~10 kd
-    if mid > 160 - tag_width / 3 and mid < 160 + tag_width / 3:
-        straight_if()
-    else:
-        if control_output > 0:
-            control_output_final = control_output + dead_area
-        else:
-            control_output_final = control_output - dead_area
-        if control_output_final > 1000:
-            up.CDS_SetSpeed(1, -1000)
-            up.CDS_SetSpeed(2, 1000)
-        elif control_output_final < -1000:
-            up.CDS_SetSpeed(1, 1000)
-            up.CDS_SetSpeed(2, -1000)
-        else:
-            up.CDS_SetSpeed(1, -control_output_final)
-            up.CDS_SetSpeed(2, control_output_final)
+# def April_tag_move_pid():
+#     pid = PIDController(Kp=10, Ki=0, Kd=0, gkd=0.0, out_limit=1000.0)
+#     control_output = pid.calculate(160, mid)  # kp 0~10 kd
+#     if mid > 160 - tag_width / 3 and mid < 160 + tag_width / 3:
+#         straight_if()
+#     else:
+#         if control_output > 0:
+#             control_output_final = control_output + dead_area
+#         else:
+#             control_output_final = control_output - dead_area
+#         if control_output_final > 1000:
+#             up.CDS_SetSpeed(1, -1000)
+#             up.CDS_SetSpeed(2, 1000)
+#         elif control_output_final < -1000:
+#             up.CDS_SetSpeed(1, 1000)
+#             up.CDS_SetSpeed(2, -1000)
+#         else:
+#             up.CDS_SetSpeed(1, -control_output_final)
+#             up.CDS_SetSpeed(2, control_output_final)
 
 
 def April_tag_escape():
@@ -368,22 +409,6 @@ def back_sleep():
     while_sleep(5)
     back(600)
     while_sleep(5)
-    # sleep_time = 20
-    # while sleep_time >= 0:
-    #     sleep_time-=1
-    #     stop()
-    # sleep_time = 20
-    # while sleep_time >= 0:
-    #     sleep_time-=1
-    #     back(200)
-    # sleep_time = 20
-    # while sleep_time >= 0:
-    #     sleep_time-=1
-    #     back(400)
-    # sleep_time = 20
-    # while sleep_time >= 0:
-    #     sleep_time-=1
-    #     back(600)
 
 
 def left(speed):
@@ -526,7 +551,7 @@ def up_act():
             else:
                 April_tag_escape()
         elif blue_detected:
-            color_blue_move()
+            color_blue_move_pid()
         else:
             if io_data[0] == 0 and io_data[1] == 0:
                 straight_if()
@@ -620,7 +645,6 @@ if __name__ == "__main__":
     # up.ADC_Led_SetColor(0, 0xE67E223)  # FF0000(纯红)FF5733(橙红)C70039(深红)000000(纯黑)FFFF00(纯黄)
     # up.ADC_Led_SetColor(1, 0x800080)  # 0000FF(纯蓝)3498DB(天蓝)2C3E50(深蓝)E67E22(萝卜橙)8B4513(马棕)
     # # F9E79F(纯白)00FF00(纯绿色)800080(纯紫)E67E223(青色)
-    io_data = []
     up.CDS_SetMode(1, 1)
     up.CDS_SetMode(2, 1)
     up.CDS_SetMode(3, 0)
@@ -665,9 +689,10 @@ if __name__ == "__main__":
         # up.CDS_SetAngle(4, 600, 700)
         # print(mix_adc_0)
         # 0、1 正前方红外   3、4斜向下   6、7左右
-        # print(unify_all)
-        check_time()
-        if down:
-            down_act()
-        else:
-            up_act()
+        print(adc_value)
+        # check_time()
+        # if down:
+        #     down_act()
+        # else:
+        #     up_act()
+
