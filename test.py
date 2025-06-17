@@ -11,6 +11,7 @@ import threading
 
 tag_safe = 0
 tag_flag = 0
+blue_detected = 0
 mid = 0
 tag_width = 0
 tags = []
@@ -25,6 +26,8 @@ index = 0
 flag = 0
 cnt = 0
 dead_area = 400
+cx = 0
+cy = 0
 
 tai_flag = 0
 tai_flag_time = 0
@@ -188,7 +191,7 @@ class ApriltagDetect:
 
 
 def April_start_detect():
-    global frame
+    global frame, blue_detected
     cap = cv2.VideoCapture('/dev/video0')
     cap.set(3, 320)
     cap.set(4, 240)
@@ -207,7 +210,39 @@ def April_start_detect():
             subprocess.check_call("sudo modprobe uvcvideo", shell=True)
             time.sleep(0.2)
             cap = cv2.VideoCapture('/dev/video0')
-
+            # 转换为HSV颜色空间（更适合颜色检测）
+        hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+        # 定义蓝色的HSV范围（示例值，需根据实际调整）
+        lower_blue = np.array([100, 150, 50])
+        upper_blue = np.array([140, 255, 255])
+        # 创建掩膜
+        mask = cv2.inRange(hsv, lower_blue, upper_blue)
+        # 形态学操作（可选，用于降噪）
+        kernel = np.ones((5, 5), np.uint8)
+        mask = cv2.erode(mask, kernel, iterations=1)
+        mask = cv2.dilate(mask, kernel, iterations=1)
+        # 查找轮廓
+        contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        blue_detected = 0
+        # 标记坐标的列表
+        coordinates = []
+        if contours:
+            # 找到最大轮廓
+            largest_contour = max(contours, key=cv2.contourArea)
+            # 计算轮廓中心
+            M = cv2.moments(largest_contour)
+            if M["m00"] != 0:
+                cx = int(M["m10"] / M["m00"])
+                cy = int(M["m01"] / M["m00"])
+                blue_detected = 1  # 1表示检测到蓝色物体
+                coordinates.append((cx, cy))
+                # 在画面中标记中心点
+                cv2.circle(frame, (cx, cy), 7, (0, 0, 255), -1)
+                cv2.putText(frame, f"({cx}, {cy})", (cx - 50, cy - 20),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+        # 显示结果
+        cv2.imshow('Camera', frame)
+        cv2.imshow('Mask', mask)
         # if tags:
         #     # print(tags)
         #     # print(index)
@@ -226,6 +261,18 @@ def April_start_detect():
             break
     cap.release()
     cv2.destroyAllWindows()
+
+
+def color_blue_move():
+    if cx < 160 - 10:
+        left(500)
+        # print("左")
+    elif cx > 160 + 10:
+        right(500)
+        # print("右")
+    else:
+        straight_if()
+        # print("前进")
 
 
 def April_tag_move():
@@ -476,6 +523,8 @@ def up_act():
                 April_tag_move()
             else:
                 April_tag_escape()
+        elif blue_detected:
+            color_blue_move()
         else:
             if io_data[0] == 0 and io_data[1] == 0:
                 straight_if()
