@@ -1,4 +1,4 @@
-from re import search
+from re import search, escape
 
 import cv2
 import subprocess
@@ -9,6 +9,7 @@ import numpy as np
 import signal
 import threading
 
+camera_safe=1
 tag_safe = 0
 tag_flag = 0
 blue_detected = 0
@@ -22,10 +23,13 @@ distance = 0
 di_fang_kuai = 1  # 敌方块
 zhong_li_kuai = 2  # 中立块
 zha_dan_kuai = 0  # 炸弹块
+down_time_value=250
+down_value=200
+escape_value=50
+dead_area = 250
 index = 0
 flag = 0
 cnt = 0
-dead_area = 250
 cx = 0
 cy = 0
 
@@ -191,7 +195,7 @@ class ApriltagDetect:
 
 
 def April_start_detect():
-    global frame, blue_detected, cx, cy
+    global frame, blue_detected, cx, cy,camera_safe
     cap = cv2.VideoCapture('/dev/video0')
     cap.set(3, 320)
     cap.set(4, 240)
@@ -199,17 +203,22 @@ def April_start_detect():
     ad = ApriltagDetect()
     while True:
         ret, frame = cap.read()
-        frame = cv2.rotate(frame, cv2.ROTATE_180)
-        ad.update_frame(frame)
-        if ret is False:
+        if not ret or frame is None:
+            print("摄像头断开连接")
+            camera_safe=0
             cap.release()
             time.sleep(0.2)
-            print("reconnect to camera")
+            print("正在尝试重连")
             subprocess.check_call("sudo modprobe -rf uvcvideo", shell=True)
             time.sleep(0.5)
             subprocess.check_call("sudo modprobe uvcvideo", shell=True)
-            time.sleep(0.2)
+            time.sleep(0.5)
             cap = cv2.VideoCapture('/dev/video0')
+            continue
+        else:
+            camera_safe=1
+        frame = cv2.rotate(frame, cv2.ROTATE_180)
+        ad.update_frame(frame)
             # 转换为HSV颜色空间（更适合颜色检测）
         hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
         # 定义蓝色的HSV范围（示例值，需根据实际调整）
@@ -300,7 +309,7 @@ def color_blue_move():
 
 def color_blue_move_pid():
     global control_output, control_output_final
-    pid = PIDController(Kp=6, Ki=0, Kd=0, gkd=0.0, out_limit=1000.0)
+    pid = PIDController(Kp=6, Ki=0, Kd=0.5, gkd=0.0, out_limit=1000.0)
     control_output = pid.calculate(160, cx)  # kp 0~10 kd
     if control_output > 0:
         control_output_final = control_output + dead_area
@@ -323,7 +332,7 @@ def color_blue_move_pid():
 
 
 def April_tag_move():
-    if distance>150:
+    if distance>170:
         if mid < 160 - tag_width / 3:
             left(500)
             # print("左")
@@ -344,7 +353,7 @@ def April_tag_move():
 
 def April_tag_move_pid():
     global tag_control_output, tag_control_output_final,mid,tag_width
-    tag_pid = PIDController(Kp=6, Ki=0, Kd=0, gkd=0.0, out_limit=1000.0)
+    tag_pid = PIDController(Kp=4, Ki=0, Kd=0.5, gkd=0.0, out_limit=1000.0)
     tag_control_output = tag_pid.calculate(160, mid)  # kp 0~10 kd
     if tag_control_output > 0:
         tag_control_output_final = tag_control_output + dead_area
@@ -504,19 +513,19 @@ def check_time():
         check_right_time += 1
     else:
         check_right_time = 0
-    if unify_all < -400:
+    if unify_all < down_value:
         check_down_time += 1
     else:
         check_down_time = 0
         down = 0
     #
     if not down:
-        if check_down_time >= 200:
+        if check_down_time >= down_time_value:
             down = 1
     if escape_flag_left or escape_flag_right:
         escape_time -= 1
         if escape_time <= 0:
-            escape_time = 50
+            escape_time = escape_value
             escape_flag_left = 0
             escape_flag_right = 0
 
@@ -529,15 +538,13 @@ def down_act():
         time.sleep(1)
         tai_flag = 0
     if up_flag:
-        back(400)
+        back(800)
         up.CDS_SetAngle(3, 400, 700)  #
         up.CDS_SetAngle(4, 380, 700)
-        time.sleep(0.4)
-        back(800)
-        time.sleep(0.7)
+        time.sleep(0.5)
         up.CDS_SetAngle(3, 620, 700)  # 最低
         up.CDS_SetAngle(4, 180, 700)
-        time.sleep(0.7)
+        time.sleep(0.8)
         stop()
         time.sleep(0.3)
         up_flag = 0
@@ -562,7 +569,7 @@ def up_act():
     if io_data[3] == 0 and io_data[4] == 0:
         if tag_flag:
             if tag_safe:
-                April_tag_move()
+                April_tag_move_pid()
             else:
                 April_tag_escape()
         elif blue_detected:
@@ -717,8 +724,11 @@ if __name__ == "__main__":
         # print(mix_adc_0)
         # 0、1 正前方红外   3、4斜向下   6、7左右
         # print(unify_all)
-        check_time()
-        if down:
-            down_act()
+        if camera_safe:
+            check_time()
+            if down:
+                down_act()
+            else:
+                up_act()
         else:
-            up_act()
+            stop()
