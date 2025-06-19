@@ -33,7 +33,7 @@ tai_flag = 0
 tai_flag_time = 0
 escape_flag_right = 0
 escape_flag_left = 0
-escape_time = 200
+escape_time = 50
 down = 1
 up_flag = 0
 t = 0
@@ -309,7 +309,7 @@ def color_blue_move_pid():
     # print(control_output_final)
 
     if cx >= 160 - 10 and cx < 160 + 10:
-        straight(500, 500)
+        straight_if()
     else:
         if control_output_final > 1000:
             up.CDS_SetSpeed(1, 1000)
@@ -323,36 +323,47 @@ def color_blue_move_pid():
 
 
 def April_tag_move():
-    if mid < 160 - tag_width / 3:
-        left(500)
-        # print("左")
-    elif mid > 160 + tag_width / 3:
-        right(500)
-        # print("右")
+    if distance>150:
+        if mid < 160 - tag_width / 3:
+            left(500)
+            # print("左")
+        elif mid > 160 + tag_width / 3:
+            right(500)
+            # print("右")
+        else:
+            straight_if()
+            # print("前进")
     else:
-        straight_if()
-        # print("前进")
+        if io_data[0] == 1 and io_data[1] == 0 and not escape_flag_right:
+            right(500)
+        elif io_data[0] == 0 and io_data[1] == 1 and not escape_flag_left:
+            left(500)
+        else:
+            straight_if()
 
 
-# def April_tag_move_pid():
-#     pid = PIDController(Kp=10, Ki=0, Kd=0, gkd=0.0, out_limit=1000.0)
-#     control_output = pid.calculate(160, mid)  # kp 0~10 kd
-#     if mid > 160 - tag_width / 3 and mid < 160 + tag_width / 3:
-#         straight_if()
-#     else:
-#         if control_output > 0:
-#             control_output_final = control_output + dead_area
-#         else:
-#             control_output_final = control_output - dead_area
-#         if control_output_final > 1000:
-#             up.CDS_SetSpeed(1, -1000)
-#             up.CDS_SetSpeed(2, 1000)
-#         elif control_output_final < -1000:
-#             up.CDS_SetSpeed(1, 1000)
-#             up.CDS_SetSpeed(2, -1000)
-#         else:
-#             up.CDS_SetSpeed(1, -control_output_final)
-#             up.CDS_SetSpeed(2, control_output_final)
+def April_tag_move_pid():
+    global tag_control_output, tag_control_output_final,mid,tag_width
+    tag_pid = PIDController(Kp=6, Ki=0, Kd=0, gkd=0.0, out_limit=1000.0)
+    tag_control_output = tag_pid.calculate(160, mid)  # kp 0~10 kd
+    if tag_control_output > 0:
+        tag_control_output_final = tag_control_output + dead_area
+    else:
+        tag_control_output_final = tag_control_output - dead_area
+    # print(control_output_final)
+
+    if mid >= 160 - tag_width and mid < 160 + tag_width:
+        straight(500, 500)
+    else:
+        if tag_control_output_final > 1000:
+            up.CDS_SetSpeed(1, 1000)
+            up.CDS_SetSpeed(2, -1000)
+        elif tag_control_output_final < -1000:
+            up.CDS_SetSpeed(1, -1000)
+            up.CDS_SetSpeed(2, 1000)
+        else:
+            up.CDS_SetSpeed(1, int(tag_control_output_final))
+            up.CDS_SetSpeed(2, -int(tag_control_output_final))
 
 
 def April_tag_escape():
@@ -387,7 +398,7 @@ def straight_if():
     # elif unify_all > 2800:
     #     straight(700, 700)
     # else:
-    straight(500, 500)
+    straight(600, 600)
 
 
 def stop():
@@ -493,14 +504,14 @@ def check_time():
         check_right_time += 1
     else:
         check_right_time = 0
-    if unify_all < -200:
+    if unify_all < -400:
         check_down_time += 1
     else:
         check_down_time = 0
         down = 0
     #
     if not down:
-        if check_down_time >= 100:
+        if check_down_time >= 200:
             down = 1
     if escape_flag_left or escape_flag_right:
         escape_time -= 1
@@ -567,12 +578,20 @@ def up_act():
                 search_left_and_right()
     elif io_data[3] == 1 and io_data[4] == 0:
         back_sleep()
-        right(1000)
-        while_sleep(20)
+        if blue_detected:
+            right(1000)
+            while_sleep(10)
+        else:
+            right(1000)
+            while_sleep(20)
     elif io_data[3] == 0 and io_data[4] == 1:
         back_sleep()
-        left(1000)
-        while_sleep(20)
+        if blue_detected:
+            left(1000)
+            while_sleep(10)
+        else:
+            left(1000)
+            while_sleep(20)
     else:
         back_sleep()
         left(1000)
@@ -614,15 +633,19 @@ def search_inf():
 
 
 def while_sleep(sleep_t):
-    global cnt
+    global cnt,adc_value,io_data
     while sleep_t >= 0:
         cnt += 1
         if cnt % 5000 == 0:  # 0.01秒钟打印一次
             cnt = 0
+            adc_value = up.ADC_Get_All_Channle()
+            mix_all_gray()
+            unify_all_gray()
+            io_data = get_io_data(up)
             check_time()
             sleep_t -= 1
-        if io_data[0] == 0 or io_data[1] == 0 or io_data[6] == 0 or io_data[7] == 0:
-            break
+        # if io_data[0] == 0 or io_data[1] == 0 or io_data[6] == 0 or io_data[7] == 0:
+        #     break
 
 
 def go_around(go_t):
@@ -693,7 +716,7 @@ if __name__ == "__main__":
         # up.CDS_SetAngle(4, 600, 700)
         # print(mix_adc_0)
         # 0、1 正前方红外   3、4斜向下   6、7左右
-        # print(adc_value)
+        # print(unify_all)
         check_time()
         if down:
             down_act()
