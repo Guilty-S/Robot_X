@@ -11,7 +11,7 @@ import threading
 
 camera_safe=1
 tag_safe = 0
-tag_flag = 0
+tag_flag = 1
 blue_detected = 0
 mid = 0
 tag_width = 0
@@ -360,24 +360,32 @@ def April_tag_move_pid():
     else:
         tag_control_output_final = tag_control_output - dead_area
     # print(control_output_final)
-
-    if mid >= 160 - tag_width and mid < 160 + tag_width:
-        straight(500, 500)
-    else:
-        if tag_control_output_final > 1000:
-            up.CDS_SetSpeed(1, 1000)
-            up.CDS_SetSpeed(2, -1000)
-        elif tag_control_output_final < -1000:
-            up.CDS_SetSpeed(1, -1000)
-            up.CDS_SetSpeed(2, 1000)
+    if distance>170:
+        if mid >= 160 - tag_width and mid < 160 + tag_width:
+            straight(500, 500)
         else:
-            up.CDS_SetSpeed(1, int(tag_control_output_final))
-            up.CDS_SetSpeed(2, -int(tag_control_output_final))
+            if tag_control_output_final > 1000:
+                up.CDS_SetSpeed(1, 1000)
+                up.CDS_SetSpeed(2, -1000)
+            elif tag_control_output_final < -1000:
+                up.CDS_SetSpeed(1, -1000)
+                up.CDS_SetSpeed(2, 1000)
+            else:
+                up.CDS_SetSpeed(1, int(tag_control_output_final))
+                up.CDS_SetSpeed(2, -int(tag_control_output_final))
+    else:
+        if io_data[0] == 1 and io_data[1] == 0 and not escape_flag_right:
+            right(500)
+        elif io_data[0] == 0 and io_data[1] == 1 and not escape_flag_left:
+            left(500)
+        else:
+            straight_if()
+
 
 
 def April_tag_escape():
     global escape_flag_right, escape_flag_left
-    if distance < 200:
+    if distance < 170:
         if mid < 160:
             right(1000)
             escape_flag_left = 1
@@ -541,7 +549,7 @@ def down_act():
         back(800)
         up.CDS_SetAngle(3, 400, 700)  #
         up.CDS_SetAngle(4, 380, 700)
-        time.sleep(0.5)
+        time.sleep(0.4)
         up.CDS_SetAngle(3, 620, 700)  # 最低
         up.CDS_SetAngle(4, 180, 700)
         time.sleep(0.8)
@@ -723,7 +731,7 @@ if __name__ == "__main__":
         # up.CDS_SetAngle(4, 600, 700)
         # print(mix_adc_0)
         # 0、1 正前方红外   3、4斜向下   6、7左右
-        # print(unify_all)
+        # print(adc_value)
         if camera_safe:
             check_time()
             if down:
