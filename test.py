@@ -9,7 +9,7 @@ import numpy as np
 import signal
 import threading
 
-camera_safe=1
+camera_safe = 0
 tag_safe = 0
 tag_flag = 1
 blue_detected = 0
@@ -23,9 +23,9 @@ distance = 0
 di_fang_kuai = 1  # 敌方块
 zhong_li_kuai = 2  # 中立块
 zha_dan_kuai = 0  # 炸弹块
-down_time_value=250
-down_value=-300
-escape_value=100
+down_time_value = 250
+down_value = -700
+escape_value = 100
 dead_area = 250
 index = 0
 flag = 0
@@ -150,6 +150,18 @@ class ApriltagDetect:
                                 index = i
                         elif tags[index].tag_id == zhong_li_kuai:
                             index = i
+                else:
+                    x_distance = int(self.get_distance(tags[index].homography, 4300))
+                    x_mid = tuple(tags[index].corners[0].astype(int))[0] / 2 + \
+                          tuple(tags[index].corners[2].astype(int))[0] / 2  # 计算tag的横向位置
+                    if x_distance <120:
+                        index = i
+                if tags[0].tag_id==zha_dan_kuai:
+                    x_distance = int(self.get_distance(tags[0].homography, 4300))
+                    x_mid = tuple(tags[0].corners[0].astype(int))[0] / 2 + \
+                          tuple(tags[0].corners[2].astype(int))[0] / 2  # 计算tag的横向位置
+                    if x_distance <120:
+                        index = 0
             if tags[index].tag_id == di_fang_kuai or tags[index].tag_id == zhong_li_kuai:  # 冒泡后如果最近的id是中立或敌方
                 tag_safe = 1
             else:  # 冒泡后如果的id是炸弹块(侧面证明了没有检测到敌方和中立)
@@ -195,7 +207,7 @@ class ApriltagDetect:
 
 
 def April_start_detect():
-    global frame, blue_detected, cx, cy,camera_safe
+    global frame, blue_detected, cx, cy, camera_safe
     cap = cv2.VideoCapture('/dev/video0')
     cap.set(3, 320)
     cap.set(4, 240)
@@ -205,7 +217,7 @@ def April_start_detect():
         ret, frame = cap.read()
         if not ret or frame is None:
             print("摄像头断开连接")
-            camera_safe=0
+            camera_safe = 0
             cap.release()
             time.sleep(0.2)
             print("正在尝试重连")
@@ -216,11 +228,11 @@ def April_start_detect():
             cap = cv2.VideoCapture('/dev/video0')
             continue
         else:
-            camera_safe=1
+            camera_safe = 1
         frame = cv2.rotate(frame, cv2.ROTATE_180)
         ad.update_frame(frame)
         # time.sleep(0.01)
-            # 转换为HSV颜色空间（更适合颜色检测）
+        # 转换为HSV颜色空间（更适合颜色检测）
         hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
         # 定义蓝色的HSV范围（示例值，需根据实际调整）
         # lower_blue = np.array([100, 150, 50])
@@ -333,7 +345,7 @@ def color_blue_move_pid():
 
 
 def April_tag_move():
-    if distance>170:
+    if distance > 170:
         if mid < 160 - tag_width / 3:
             left(500)
             # print("左")
@@ -353,7 +365,7 @@ def April_tag_move():
 
 
 def April_tag_move_pid():
-    global tag_control_output, tag_control_output_final,mid,tag_width
+    global tag_control_output, tag_control_output_final, mid, tag_width
     tag_pid = PIDController(Kp=4, Ki=0, Kd=0.5, gkd=0.0, out_limit=1000.0)
     tag_control_output = tag_pid.calculate(160, mid)  # kp 0~10 kd
     if tag_control_output > 0:
@@ -361,7 +373,7 @@ def April_tag_move_pid():
     else:
         tag_control_output_final = tag_control_output - dead_area
     # print(control_output_final)
-    if distance>170:
+    if distance > 170:
         if mid >= 160 - tag_width and mid < 160 + tag_width:
             straight(500, 500)
         else:
@@ -381,7 +393,6 @@ def April_tag_move_pid():
             left(500)
         else:
             straight_if()
-
 
 
 def April_tag_escape():
@@ -416,8 +427,8 @@ def straight_if():
     # elif unify_all > 2800:
     #     straight(700, 700)
     # else:
-    if unify_all>down_value+2000:
-        straight(600,600)
+    if unify_all > down_value + 2000:
+        straight(600, 600)
     else:
         straight(500, 500)
 
@@ -642,7 +653,7 @@ def search_inf():
 
 
 def while_sleep(sleep_t):
-    global cnt,adc_value,io_data
+    global cnt, adc_value, io_data
     while sleep_t >= 0:
         cnt += 1
         if cnt % 5000 == 0:  # 0.01秒钟打印一次
