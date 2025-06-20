@@ -1,5 +1,6 @@
 from re import search, escape
 
+import os
 import cv2
 import subprocess
 import uptech
@@ -208,6 +209,8 @@ class ApriltagDetect:
 
 def April_start_detect():
     global frame, blue_detected, cx, cy, camera_safe
+    os.system("sudo modprobe -rf uvcvideo")
+    time.sleep(1)  # 等待驱动加载完成
     cap = cv2.VideoCapture('/dev/video0')
     cap.set(3, 320)
     cap.set(4, 240)
@@ -230,8 +233,9 @@ def April_start_detect():
         else:
             camera_safe = 1
         frame = cv2.rotate(frame, cv2.ROTATE_180)
+        # time.sleep(0.05)
         ad.update_frame(frame)
-        # time.sleep(0.01)
+        # print(1)
         # 转换为HSV颜色空间（更适合颜色检测）
         hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
         # 定义蓝色的HSV范围（示例值，需根据实际调整）
@@ -710,6 +714,7 @@ if __name__ == "__main__":
     #     io_data = get_io_data(up)
     #     if io_data[6] == 0 and io_data[7] == 0:
     #         break
+    print("go")
     # go_around(1000)
     while True:
         adc_value = up.ADC_Get_All_Channle()
@@ -736,8 +741,9 @@ if __name__ == "__main__":
         # up.CDS_SetAngle(4, 600, 700)
         # print(mix_adc_0)
         # 0、1 正前方红外   3、4斜向下   6、7左右
-        # print(unify_all)
+        # print(io_data)
         # print(escape_time)
+        # print(camera_safe)
         if camera_safe:
             check_time()
             if down:
@@ -745,4 +751,5 @@ if __name__ == "__main__":
             else:
                 up_act()
         else:
+            # print("stop")
             stop()
