@@ -24,8 +24,8 @@ di_fang_kuai = 1  # 敌方块
 zhong_li_kuai = 2  # 中立块
 zha_dan_kuai = 0  # 炸弹块
 down_time_value=250
-down_value=200
-escape_value=50
+down_value=700
+escape_value=100
 dead_area = 250
 index = 0
 flag = 0
@@ -429,18 +429,18 @@ def back(speed):
 
 
 def back_sleep():
-    # stop()
-    # time.sleep(0.1)
-    # back(400)
-    # time.sleep(0.05)
-    # back(600)
-    # time.sleep(0.05)
     stop()
-    while_sleep(10)
+    time.sleep(0.1)
     back(400)
-    while_sleep(5)
+    time.sleep(0.05)
     back(600)
-    while_sleep(5)
+    time.sleep(0.05)
+    # stop()
+    # while_sleep(10)
+    # back(400)
+    # while_sleep(5)
+    # back(600)
+    # while_sleep(5)
 
 
 def left(speed):
@@ -547,12 +547,10 @@ def down_act():
         tai_flag = 0
     if up_flag:
         back(800)
-        up.CDS_SetAngle(3, 400, 700)  #
-        up.CDS_SetAngle(4, 380, 700)
-        time.sleep(0.4)
+        time.sleep(0.6)
         up.CDS_SetAngle(3, 620, 700)  # 最低
         up.CDS_SetAngle(4, 180, 700)
-        time.sleep(0.8)
+        time.sleep(1)
         stop()
         time.sleep(0.3)
         up_flag = 0
@@ -593,24 +591,16 @@ def up_act():
                 search_left_and_right()
     elif io_data[3] == 1 and io_data[4] == 0:
         back_sleep()
-        if blue_detected:
-            right(1000)
-            while_sleep(10)
-        else:
-            right(1000)
-            while_sleep(20)
+        right(1000)
+        while_sleep(20)
     elif io_data[3] == 0 and io_data[4] == 1:
-        back_sleep()
-        if blue_detected:
-            left(1000)
-            while_sleep(10)
-        else:
-            left(1000)
-            while_sleep(20)
-    else:
         back_sleep()
         left(1000)
         while_sleep(20)
+    else:
+        back_sleep()
+        left(600)
+        while_sleep(10)
 
 
 def search_left_and_right():
@@ -731,7 +721,7 @@ if __name__ == "__main__":
         # up.CDS_SetAngle(4, 600, 700)
         # print(mix_adc_0)
         # 0、1 正前方红外   3、4斜向下   6、7左右
-        # print(adc_value)
+        # print(un)
         if camera_safe:
             check_time()
             if down:
