@@ -24,7 +24,7 @@ di_fang_kuai = 1  # 敌方块
 zhong_li_kuai = 2  # 中立块
 zha_dan_kuai = 0  # 炸弹块
 down_time_value=250
-down_value=700
+down_value=-300
 escape_value=100
 dead_area = 250
 index = 0
@@ -219,6 +219,7 @@ def April_start_detect():
             camera_safe=1
         frame = cv2.rotate(frame, cv2.ROTATE_180)
         ad.update_frame(frame)
+        # time.sleep(0.01)
             # 转换为HSV颜色空间（更适合颜色检测）
         hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
         # 定义蓝色的HSV范围（示例值，需根据实际调整）
@@ -309,7 +310,7 @@ def color_blue_move():
 
 def color_blue_move_pid():
     global control_output, control_output_final
-    pid = PIDController(Kp=6, Ki=0, Kd=0.5, gkd=0.0, out_limit=1000.0)
+    pid = PIDController(Kp=4, Ki=0, Kd=0.5, gkd=0.0, out_limit=1000.0)
     control_output = pid.calculate(160, cx)  # kp 0~10 kd
     if control_output > 0:
         control_output_final = control_output + dead_area
@@ -415,7 +416,10 @@ def straight_if():
     # elif unify_all > 2800:
     #     straight(700, 700)
     # else:
-    straight(600, 600)
+    if unify_all>down_value+2000:
+        straight(600,600)
+    else:
+        straight(500, 500)
 
 
 def stop():
@@ -429,18 +433,18 @@ def back(speed):
 
 
 def back_sleep():
-    stop()
-    time.sleep(0.1)
-    back(400)
-    time.sleep(0.05)
-    back(600)
-    time.sleep(0.05)
     # stop()
-    # while_sleep(10)
+    # time.sleep(0.1)
     # back(400)
-    # while_sleep(5)
+    # time.sleep(0.05)
     # back(600)
-    # while_sleep(5)
+    # time.sleep(0.05)
+    stop()
+    while_sleep(10)
+    back(400)
+    while_sleep(5)
+    back(600)
+    while_sleep(5)
 
 
 def left(speed):
@@ -546,11 +550,13 @@ def down_act():
         time.sleep(1)
         tai_flag = 0
     if up_flag:
-        back(800)
-        time.sleep(0.6)
+        back(900)
+        up.CDS_SetAngle(3, 400, 700)  #
+        up.CDS_SetAngle(4, 380, 700)
+        time.sleep(0.4)
         up.CDS_SetAngle(3, 620, 700)  # 最低
         up.CDS_SetAngle(4, 180, 700)
-        time.sleep(1)
+        time.sleep(0.8)
         stop()
         time.sleep(0.3)
         up_flag = 0
@@ -575,11 +581,11 @@ def up_act():
     if io_data[3] == 0 and io_data[4] == 0:
         if tag_flag:
             if tag_safe:
-                April_tag_move_pid()
+                April_tag_move()
             else:
                 April_tag_escape()
         elif blue_detected:
-            color_blue_move_pid()
+            color_blue_move()
         else:
             if io_data[0] == 0 and io_data[1] == 0:
                 straight_if()
@@ -599,8 +605,6 @@ def up_act():
         while_sleep(20)
     else:
         back_sleep()
-        left(600)
-        while_sleep(10)
 
 
 def search_left_and_right():
@@ -721,7 +725,8 @@ if __name__ == "__main__":
         # up.CDS_SetAngle(4, 600, 700)
         # print(mix_adc_0)
         # 0、1 正前方红外   3、4斜向下   6、7左右
-        # print(un)
+        # print(unify_all)
+        # print(escape_time)
         if camera_safe:
             check_time()
             if down:
