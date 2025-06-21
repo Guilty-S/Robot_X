@@ -8,8 +8,11 @@ import apriltag
 import numpy as np
 import signal
 import threading
+import datetime
 
+no_safe = 0
 camera_reload = 1
+camera_reload_buffer = 0
 camera_safe = 1
 tag_safe = 0
 tag_flag = 1
@@ -199,18 +202,19 @@ class ApriltagDetect:
 
 
 def April_start_detect():
-    global frame, blue_detected, cx, cy, camera_safe, camera_reload
+    global frame, blue_detected, cx, cy, camera_safe, camera_reload, camera_reload_buffer,no_safe
     cap = cv2.VideoCapture('/dev/video0')
-    cap.set(3, 640)
-    cap.set(4, 480)
+    cap.set(3, 320)
+    cap.set(4, 240)
     cap.set(cv2.CAP_PROP_FPS, 60)
     ad = ApriltagDetect()
+    last_valid_time = datetime.datetime.now()
     while True:
-        ret, frame = cap.read()
-        if camera_reload:
-            ret = 0
-            camera_reload = 0
-        if not ret or frame is None:
+        print(last_valid_time)
+        if (datetime.datetime.now() - last_valid_time).total_seconds() > 3.0:  # 1秒超时
+            print("摄像头响应超时，判定为断开")
+            no_safe = 1
+            cap.release()
             print("摄像头断开连接")
             camera_safe = 0
             cap.release()
@@ -221,9 +225,27 @@ def April_start_detect():
             subprocess.check_call("sudo modprobe uvcvideo", shell=True)
             time.sleep(0.5)
             cap = cv2.VideoCapture('/dev/video0')
+            last_valid_time = datetime.datetime.now()
+            # ...后续重连逻辑...
             continue
-        else:
-            camera_safe = 1
+        ret, frame = cap.read()
+        last_valid_time = datetime.datetime.now()
+
+        # if camera_reload:
+        #     ret = 0
+        #     camera_reload = 0
+        # if cap.isOpened() and camera_reload_buffer:
+        #     # 重新设置分辨率
+        #     cap.set(3, 320)
+        #     cap.set(4, 240)
+        #     cap.set(cv2.CAP_PROP_FPS, 60)
+        #     camera_reload_buffer = 0
+
+        # if camera_reload_buffer:
+        #     cap.set(3, 320)
+        #     cap.set(4, 240)
+        #     cap.set(cv2.CAP_PROP_FPS, 60)
+        #     ad = ApriltagDetect()
         frame = cv2.rotate(frame, cv2.ROTATE_180)
         ad.update_frame(frame)
         # time.sleep(0.01)
@@ -275,7 +297,7 @@ def April_start_detect():
         #             print("敌方")
         #         elif tags[index].tag_id == 0:
         #             print("中立")
-        # cv2.imshow("img", frame)
+        cv2.imshow("img", frame)
         if cv2.waitKey(1) & 0xff == ord('q'):
             break
     cap.release()
@@ -283,12 +305,36 @@ def April_start_detect():
 
 
 def color_blue_move():
-    if cx < 320 - 40:
-        left(500)
-    elif cx > 320 + 40:
-        right(500)
+    if cy > 120:
+        if cx < 160 - 40:
+            left(500)
+            # print("左")
+        elif cx > 160 + 40:
+            right(500)
+            # print("右")
+        else:
+            straight_if()
+            # print("前进")
+    elif cy > 80:
+        if cx < 160 - 30:
+            left(500)
+            # print("左")
+        elif cx > 160 + 30:
+            right(500)
+            # print("右")
+        else:
+            straight_if()
+            # print("前进")
     else:
-        straight_if()
+        if cx < 160 - 20:
+            left(500)
+            # print("左")
+        elif cx > 160 + 20:
+            right(500)
+            # print("右")
+        else:
+            straight_if()
+            # print("前进")
 
 
 def color_blue_move_pid():
@@ -318,11 +364,11 @@ def color_blue_move_pid():
 def April_tag_move():
     global tag_lock_flag
     tag_lock_flag = 1
-    if distance > 90:
-        if mid < 320 - tag_width / 3:
+    if distance > 170:
+        if mid < 160 - tag_width / 3:
             left(500)
             # print("左")
-        elif mid > 320 + tag_width / 3:
+        elif mid > 160 + tag_width / 3:
             right(500)
             # print("右")
         else:
@@ -370,8 +416,8 @@ def April_tag_move_pid():
 
 def April_tag_escape():
     global escape_flag_right, escape_flag_left
-    if distance < 90:
-        if mid < 320:
+    if distance < 170:
+        if mid < 160:
             right(1000)
             escape_flag_left = 1
         else:
@@ -610,7 +656,7 @@ def search_left_and_right():
                 t = 0
                 check_right_time = 0
                 break
-            if blue_detected and 320 - 20 < cx < 320 + 20:
+            if blue_detected and 150 < cx < 170:
                 t = 0
                 check_right_time = 0
                 break
@@ -624,7 +670,7 @@ def search_left_and_right():
                 t = 0
                 check_left_time = 0
                 break
-            if blue_detected and 320 - 20 < cx < 320 + 20:
+            if blue_detected and 150 < cx < 170:
                 t = 0
                 check_right_time = 0
                 break
@@ -681,10 +727,10 @@ if __name__ == "__main__":
     # target3 = threading.Thread(target=search_inf)
     # target3.start()
     print("Ready——")
-    # while True:
-    #     io_data = get_io_data(up)
-    #     if io_data[6] == 0 and io_data[7] == 0:
-    #         break
+    while True:
+        io_data = get_io_data(up)
+        if io_data[6] == 0 and io_data[7] == 0:
+            break
     print("Go!!")
     while True:
         adc_value = up.ADC_Get_All_Channle()
