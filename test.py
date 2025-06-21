@@ -611,11 +611,11 @@ def up_act():
     elif io_data[3] == 1 and io_data[4] == 0:
         back_sleep()
         right(1000)
-        while_sleep(20)
+        while_sleep_break(20)
     elif io_data[3] == 0 and io_data[4] == 1:
         back_sleep()
         left(1000)
-        while_sleep(20)
+        while_sleep_break(20)
     else:
         back_sleep()
 
@@ -710,11 +710,12 @@ if __name__ == "__main__":
     target2.start()
     # target3 = threading.Thread(target=search_inf)
     # target3.start()
+    print("Ready————")
     # while True:
     #     io_data = get_io_data(up)
     #     if io_data[6] == 0 and io_data[7] == 0:
     #         break
-    print("go")
+    print("Go!!!")
     # go_around(1000)
     while True:
         adc_value = up.ADC_Get_All_Channle()
