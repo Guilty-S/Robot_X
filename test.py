@@ -28,6 +28,10 @@ down_time_value = 250
 down_value = -50
 escape_value = 100
 dead_area = 250
+escape_time = 50
+tag_lock_time_value = 30
+tag_lock_time = tag_lock_time_value
+tag_lock_flag = 0
 index = 0
 flag = 0
 cnt = 0
@@ -38,7 +42,6 @@ tai_flag = 0
 tai_flag_time = 0
 escape_flag_right = 0
 escape_flag_left = 0
-escape_time = 50
 down = 1
 up_flag = 0
 t = 0
@@ -196,7 +199,7 @@ class ApriltagDetect:
 
 
 def April_start_detect():
-    global frame, blue_detected, cx, cy, camera_safe,camera_reload
+    global frame, blue_detected, cx, cy, camera_safe, camera_reload
     cap = cv2.VideoCapture('/dev/video0')
     cap.set(3, 320)
     cap.set(4, 240)
@@ -259,7 +262,7 @@ def April_start_detect():
                 cv2.putText(frame, f"({cx}, {cy})", (cx - 50, cy - 20),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
         # 显示结果
-        cv2.imshow('Camera', frame)
+        # cv2.imshow('Camera', frame)
         # cv2.imshow('Mask', mask)
         # if tags:
         #     # print(tags)
@@ -303,10 +306,10 @@ def color_blue_move():
             straight_if()
             # print("前进")
     else:
-        if cx < 160 - 10:
+        if cx < 160 - 20:
             left(500)
             # print("左")
-        elif cx > 160 + 10:
+        elif cx > 160 + 20:
             right(500)
             # print("右")
         else:
@@ -339,6 +342,8 @@ def color_blue_move_pid():
 
 
 def April_tag_move():
+    global tag_lock_flag
+    tag_lock_flag = 1
     if distance > 170:
         if mid < 160 - tag_width / 3:
             left(500)
@@ -521,7 +526,9 @@ def unify_all_gray():
 
 
 def check_time():
-    global check_left_time, check_right_time, check_down_time, down, escape_time, escape_flag_right, escape_flag_left
+    global check_left_time, check_right_time, check_down_time, down, escape_time, escape_flag_right, \
+        escape_flag_left, tag_lock_time, tag_lock_flag
+
     if io_data[6] == 0:
         check_left_time += 1
     else:
@@ -545,6 +552,11 @@ def check_time():
             escape_time = escape_value
             escape_flag_left = 0
             escape_flag_right = 0
+    if tag_lock_flag:
+        tag_lock_time -= 1
+        if tag_lock_time <= 0:
+            tag_lock_time = tag_lock_time_value
+            tag_lock_flag = 0
 
 
 def down_act():
@@ -589,7 +601,7 @@ def up_act():
                 April_tag_move()
             else:
                 April_tag_escape()
-        elif blue_detected:
+        elif blue_detected and not tag_lock_flag:
             color_blue_move()
         else:
             if io_data[0] == 0 and io_data[1] == 0:
@@ -670,20 +682,6 @@ def while_sleep(sleep_t):
         #     break
 
 
-def go_around(go_t):
-    while go_t > 0:
-        go_t -= 1
-        if io_data[3] == 0 and io_data[4] == 0:
-            straight_if()
-        elif io_data[3] == 1 and io_data[4] == 0 and not escape_flag_right:
-            right(500)
-        elif io_data[3] == 0 and io_data[4] == 1 and not escape_flag_left:
-            left(500)
-        else:
-            back(500)
-            time.sleep(0.5)
-
-
 if __name__ == "__main__":
     up = uptech.UpTech()
     up.LCD_Open(2)
@@ -709,10 +707,10 @@ if __name__ == "__main__":
     # target3 = threading.Thread(target=search_inf)
     # target3.start()
     print("Ready——")
-    # while True:
-    #     io_data = get_io_data(up)
-    #     if io_data[6] == 0 and io_data[7] == 0:
-    #         break
+    while True:
+        io_data = get_io_data(up)
+        if io_data[6] == 0 and io_data[7] == 0:
+            break
     print("Go!!")
     while True:
         adc_value = up.ADC_Get_All_Channle()
@@ -749,5 +747,3 @@ if __name__ == "__main__":
                 up_act()
         else:
             stop()
-        # print(camera_reload)
-        # print(cx)
