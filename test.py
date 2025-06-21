@@ -9,6 +9,8 @@ import numpy as np
 import signal
 import threading
 
+cap = None
+camera_time = 0
 camera_reload = 1
 camera_safe = 1
 tag_safe = 0
@@ -37,6 +39,7 @@ flag = 0
 cnt = 0
 cx = 0
 cy = 0
+cap = None
 
 last_time = 0
 tai_flag = 0
@@ -211,8 +214,33 @@ class ApriltagDetect:
         return distance
 
 
+def reconnect():
+    global last_time, camera_safe,camera_time
+    global cap
+#     # while True:
+#     #     if camera_safe:
+#     #         break
+#     cap = cv2.VideoCapture('/dev/video0')
+#     cap.set(3, 320)
+#     cap.set(4, 240)
+#     cap.set(cv2.CAP_PROP_FPS, 60)
+#     # cap = None
+    last_value = 0
+    time.sleep(4)
+    while True:
+        time.sleep(0.2)
+        if last_value == camera_time:
+            print("摄像头断开连接")
+            camera_safe = 0
+        else:
+            camera_safe = 1
+            last_value = camera_time
+#         # print(f'time{time.time()}')
+#         # print(f'last{last_time}')
+
+
 def April_start_detect():
-    global frame, blue_detected, cx, cy, camera_safe, camera_reload, last_time
+    global frame, blue_detected, cx, cy, camera_safe, camera_reload, last_time, camera_time
     cap = cv2.VideoCapture('/dev/video0')
     cap.set(3, 320)
     cap.set(4, 240)
@@ -220,6 +248,8 @@ def April_start_detect():
     ad = ApriltagDetect()
     while True:
         ret, frame = cap.read()
+        camera_time += 1
+        # print(camera_time)
         # if camera_reload:
         #     ret = 0
         #     camera_reload = 0
@@ -237,9 +267,6 @@ def April_start_detect():
             cap.set(3, 320)
             cap.set(4, 240)
             continue
-        else:
-            camera_safe = 1
-            last_time = time.time()
         frame = cv2.rotate(frame, cv2.ROTATE_180)
         ad.update_frame(frame)
         # time.sleep(0.01)
@@ -291,32 +318,13 @@ def April_start_detect():
         #             print("敌方")
         #         elif tags[index].tag_id == 0:
         #             print("中立")
-        # cv2.imshow("img", frame)
+        cv2.imshow("img", frame)
         if cv2.waitKey(1) & 0xff == ord('q'):
             break
     cap.release()
     cv2.destroyAllWindows()
 
 
-# def reconnect():
-#     global last_time,camera_safe
-#     global cap
-#     while True:
-#         # print(time.time())
-#         if time.time() - last_time > 1:
-#             print("fdd")
-#             print("摄像头断开连接")
-#             camera_safe = 0
-#             cap.release()
-#             time.sleep(0.2)
-#             print("正在尝试重连")
-#             subprocess.check_call("sudo modprobe -rf uvcvideo", shell=True)
-#             time.sleep(0.5)
-#             subprocess.check_call("sudo modprobe uvcvideo", shell=True)
-#             time.sleep(0.5)
-#             cap = cv2.VideoCapture('/dev/video0')
-#             cap.set(3, 320)
-#             cap.set(4, 240)
 def color_blue_move():
     if cy > 120:
         if cx < 160 - 40:
@@ -737,8 +745,8 @@ if __name__ == "__main__":
     signal.signal(signal.SIGINT, signal_handler)
     target2 = threading.Thread(target=April_start_detect)
     target2.start()
-    # target3 = threading.Thread(target=reconnect)
-    # target3.start()
+    target3 = threading.Thread(target=reconnect)
+    target3.start()
     print("Ready——")
     while True:
         io_data = get_io_data(up)
@@ -779,4 +787,5 @@ if __name__ == "__main__":
             else:
                 up_act()
         else:
+            print("stop")
             stop()
