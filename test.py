@@ -1,3 +1,5 @@
+from re import search, escape
+
 import cv2
 import subprocess
 import uptech
@@ -7,7 +9,8 @@ import numpy as np
 import signal
 import threading
 
-camera_safe = 0
+camera_reload = 1
+camera_safe = 1
 tag_safe = 0
 tag_flag = 1
 blue_detected = 0
@@ -22,7 +25,7 @@ di_fang_kuai = 1  # 敌方块
 zhong_li_kuai = 2  # 中立块
 zha_dan_kuai = 0  # 炸弹块
 down_time_value = 250
-down_value = -700
+down_value = -50
 escape_value = 100
 dead_area = 250
 index = 0
@@ -31,15 +34,11 @@ cnt = 0
 cx = 0
 cy = 0
 
-camera_reload = 1
 tai_flag = 0
 tai_flag_time = 0
 escape_flag_right = 0
 escape_flag_left = 0
 escape_time = 50
-tag_lock_time_value = 20
-tag_lock_time = tag_lock_time_value
-tag_lock_flag = 0
 down = 1
 up_flag = 0
 t = 0
@@ -152,18 +151,6 @@ class ApriltagDetect:
                                 index = i
                         elif tags[index].tag_id == zhong_li_kuai:
                             index = i
-                else:
-                    x_distance = int(self.get_distance(tags[index].homography, 4300))
-                    x_mid = tuple(tags[index].corners[0].astype(int))[0] / 2 + \
-                            tuple(tags[index].corners[2].astype(int))[0] / 2  # 计算tag的横向位置
-                    if x_distance < 120:
-                        index = i
-                if tags[0].tag_id == zha_dan_kuai:
-                    x_distance = int(self.get_distance(tags[0].homography, 4300))
-                    x_mid = tuple(tags[0].corners[0].astype(int))[0] / 2 + \
-                            tuple(tags[0].corners[2].astype(int))[0] / 2  # 计算tag的横向位置
-                    if x_distance < 120:
-                        index = 0
             if tags[index].tag_id == di_fang_kuai or tags[index].tag_id == zhong_li_kuai:  # 冒泡后如果最近的id是中立或敌方
                 tag_safe = 1
             else:  # 冒泡后如果的id是炸弹块(侧面证明了没有检测到敌方和中立)
@@ -209,7 +196,7 @@ class ApriltagDetect:
 
 
 def April_start_detect():
-    global frame, blue_detected, cx, cy, camera_safe, camera_reload
+    global frame, blue_detected, cx, cy, camera_safe,camera_reload
     cap = cv2.VideoCapture('/dev/video0')
     cap.set(3, 320)
     cap.set(4, 240)
@@ -218,8 +205,8 @@ def April_start_detect():
     while True:
         ret, frame = cap.read()
         if camera_reload:
-            camera_reload = 0
             ret = 0
+            camera_reload = 0
         if not ret or frame is None:
             print("摄像头断开连接")
             camera_safe = 0
@@ -231,12 +218,14 @@ def April_start_detect():
             subprocess.check_call("sudo modprobe uvcvideo", shell=True)
             time.sleep(0.5)
             cap = cv2.VideoCapture('/dev/video0')
+            cap.set(3, 320)
+            cap.set(4, 240)
             continue
         else:
             camera_safe = 1
         frame = cv2.rotate(frame, cv2.ROTATE_180)
-        # time.sleep(0.05)
         ad.update_frame(frame)
+        # time.sleep(0.01)
         # 转换为HSV颜色空间（更适合颜色检测）
         hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
         # 定义蓝色的HSV范围（示例值，需根据实际调整）
@@ -270,7 +259,7 @@ def April_start_detect():
                 cv2.putText(frame, f"({cx}, {cy})", (cx - 50, cy - 20),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
         # 显示结果
-        # cv2.imshow('Camera', frame)
+        cv2.imshow('Camera', frame)
         # cv2.imshow('Mask', mask)
         # if tags:
         #     # print(tags)
@@ -350,8 +339,6 @@ def color_blue_move_pid():
 
 
 def April_tag_move():
-    global tag_lock_flag
-    tag_lock_flag = 1
     if distance > 170:
         if mid < 160 - tag_width / 3:
             left(500)
@@ -534,8 +521,7 @@ def unify_all_gray():
 
 
 def check_time():
-    global check_left_time, check_right_time, check_down_time, down, escape_time, escape_flag_right, \
-        escape_flag_left, tag_lock_time, tag_lock_flag
+    global check_left_time, check_right_time, check_down_time, down, escape_time, escape_flag_right, escape_flag_left
     if io_data[6] == 0:
         check_left_time += 1
     else:
@@ -559,11 +545,6 @@ def check_time():
             escape_time = escape_value
             escape_flag_left = 0
             escape_flag_right = 0
-    if tag_lock_flag:
-        tag_lock_time -= 1
-        if tag_lock_time <= 0:
-            tag_lock_time = tag_lock_time_value
-            tag_lock_flag = 0
 
 
 def down_act():
@@ -608,7 +589,7 @@ def up_act():
                 April_tag_move()
             else:
                 April_tag_escape()
-        elif blue_detected and not tag_lock_flag:
+        elif blue_detected:
             color_blue_move()
         else:
             if io_data[0] == 0 and io_data[1] == 0:
@@ -645,7 +626,7 @@ def search_left_and_right():
                 break
             if blue_detected and 150 < cx < 170:
                 t = 0
-                check_left_time = 0
+                check_right_time = 0
                 break
     elif check_left_time >= 3 and escape_flag_left == 0:
         while True:
@@ -659,7 +640,7 @@ def search_left_and_right():
                 break
             if blue_detected and 150 < cx < 170:
                 t = 0
-                check_left_time = 0
+                check_right_time = 0
                 break
     else:
         straight_if()
@@ -689,20 +670,18 @@ def while_sleep(sleep_t):
         #     break
 
 
-def while_sleep_break(sleep_t):
-    global cnt, adc_value, io_data
-    while sleep_t >= 0:
-        cnt += 1
-        if cnt % 5000 == 0:  # 0.01秒钟打印一次
-            cnt = 0
-            adc_value = up.ADC_Get_All_Channle()
-            mix_all_gray()
-            unify_all_gray()
-            io_data = get_io_data(up)
-            check_time()
-            sleep_t -= 1
-        if blue_detected and 150 < cx < 170:
-            break
+def go_around(go_t):
+    while go_t > 0:
+        go_t -= 1
+        if io_data[3] == 0 and io_data[4] == 0:
+            straight_if()
+        elif io_data[3] == 1 and io_data[4] == 0 and not escape_flag_right:
+            right(500)
+        elif io_data[3] == 0 and io_data[4] == 1 and not escape_flag_left:
+            left(500)
+        else:
+            back(500)
+            time.sleep(0.5)
 
 
 if __name__ == "__main__":
@@ -729,13 +708,12 @@ if __name__ == "__main__":
     target2.start()
     # target3 = threading.Thread(target=search_inf)
     # target3.start()
-    print("Ready————")
+    print("Ready——")
     # while True:
     #     io_data = get_io_data(up)
     #     if io_data[6] == 0 and io_data[7] == 0:
     #         break
-    print("Go!!!")
-    # go_around(1000)
+    print("Go!!")
     while True:
         adc_value = up.ADC_Get_All_Channle()
         mix_all_gray()
@@ -761,10 +739,8 @@ if __name__ == "__main__":
         # up.CDS_SetAngle(4, 600, 700)
         # print(mix_adc_0)
         # 0、1 正前方红外   3、4斜向下   6、7左右
-        print(adc_value)
-        # print(io_data)
+        # print(unify_all)
         # print(escape_time)
-        # print(camera_safe)
         if camera_safe:
             check_time()
             if down:
@@ -772,5 +748,6 @@ if __name__ == "__main__":
             else:
                 up_act()
         else:
-            # print("stop")
             stop()
+        # print(camera_reload)
+        # print(cx)
