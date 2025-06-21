@@ -1,3 +1,4 @@
+import datetime
 from re import search, escape
 
 import cv2
@@ -8,11 +9,8 @@ import apriltag
 import numpy as np
 import signal
 import threading
-import datetime
 
-no_safe = 0
 camera_reload = 1
-camera_reload_buffer = 0
 camera_safe = 1
 tag_safe = 0
 tag_flag = 1
@@ -40,6 +38,7 @@ flag = 0
 cnt = 0
 cx = 0
 cy = 0
+check = 0
 
 tai_flag = 0
 tai_flag_time = 0
@@ -201,20 +200,39 @@ class ApriltagDetect:
         return distance
 
 
+def reconnect():
+    global last_valid_time,check
+    while True:
+        # print(1)
+        if (datetime.datetime.now() - last_valid_time).total_seconds() > 2.0:  # 1秒超时
+            check = 0
+            print("摄像头响应超时，判定为断开")
+            camera_safe = 0
+            time.sleep(0.2)
+            print("正在尝试重连")
+            subprocess.check_call("sudo modprobe -rf uvcvideo", shell=True)
+            time.sleep(0.5)
+            subprocess.check_call("sudo modprobe uvcvideo", shell=True)
+            time.sleep(0.5)
+            cap = cv2.VideoCapture('/dev/video0')
+            cap.set(3, 320)
+            cap.set(4, 240)
+
+
 def April_start_detect():
-    global frame, blue_detected, cx, cy, camera_safe, camera_reload, camera_reload_buffer,no_safe
+    global frame, blue_detected, cx, cy, camera_safe, camera_reload, last_valid_time, check
     cap = cv2.VideoCapture('/dev/video0')
     cap.set(3, 320)
     cap.set(4, 240)
     cap.set(cv2.CAP_PROP_FPS, 60)
     ad = ApriltagDetect()
-    last_valid_time = datetime.datetime.now()
-    while True:
-        print(last_valid_time)
-        if (datetime.datetime.now() - last_valid_time).total_seconds() > 3.0:  # 1秒超时
-            print("摄像头响应超时，判定为断开")
-            no_safe = 1
-            cap.release()
+    while True and check:
+        ret, frame = cap.read()
+        # print(1)
+        # if camera_reload:
+        #     ret = 0
+        #     camera_reload = 0
+        if not ret or frame is None:
             print("摄像头断开连接")
             camera_safe = 0
             cap.release()
@@ -225,27 +243,12 @@ def April_start_detect():
             subprocess.check_call("sudo modprobe uvcvideo", shell=True)
             time.sleep(0.5)
             cap = cv2.VideoCapture('/dev/video0')
-            last_valid_time = datetime.datetime.now()
-            # ...后续重连逻辑...
+            cap.set(3, 320)
+            cap.set(4, 240)
             continue
-        ret, frame = cap.read()
-        last_valid_time = datetime.datetime.now()
-
-        # if camera_reload:
-        #     ret = 0
-        #     camera_reload = 0
-        # if cap.isOpened() and camera_reload_buffer:
-        #     # 重新设置分辨率
-        #     cap.set(3, 320)
-        #     cap.set(4, 240)
-        #     cap.set(cv2.CAP_PROP_FPS, 60)
-        #     camera_reload_buffer = 0
-
-        # if camera_reload_buffer:
-        #     cap.set(3, 320)
-        #     cap.set(4, 240)
-        #     cap.set(cv2.CAP_PROP_FPS, 60)
-        #     ad = ApriltagDetect()
+        else:
+            last_valid_time = datetime.datetime.now()
+            camera_safe = 1
         frame = cv2.rotate(frame, cv2.ROTATE_180)
         ad.update_frame(frame)
         # time.sleep(0.01)
@@ -297,7 +300,7 @@ def April_start_detect():
         #             print("敌方")
         #         elif tags[index].tag_id == 0:
         #             print("中立")
-        cv2.imshow("img", frame)
+        # cv2.imshow("img", frame)
         if cv2.waitKey(1) & 0xff == ord('q'):
             break
     cap.release()
@@ -721,17 +724,18 @@ if __name__ == "__main__":
     # FONT_12X16  = 10
     # FONT_12X20  = 11
     print("test succeed")
+    last_valid_time = datetime.datetime.now()
     signal.signal(signal.SIGINT, signal_handler)
     target2 = threading.Thread(target=April_start_detect)
     target2.start()
-    # target3 = threading.Thread(target=search_inf)
-    # target3.start()
+    target3 = threading.Thread(target=reconnect)
+    target3.start()
     print("Ready——")
-    while True:
-        io_data = get_io_data(up)
-        if io_data[6] == 0 and io_data[7] == 0:
-            break
-    print("Go!!")
+    # while True:
+    #     io_data = get_io_data(up)
+    #     if io_data[6] == 0 and io_data[7] == 0:
+    #         break
+    # print("Go!!")
     while True:
         adc_value = up.ADC_Get_All_Channle()
         mix_all_gray()
