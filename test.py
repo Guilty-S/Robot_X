@@ -37,6 +37,9 @@ tai_flag_time = 0
 escape_flag_right = 0
 escape_flag_left = 0
 escape_time = 50
+tag_lock_time_value = 20
+tag_lock_time = tag_lock_time_value
+tag_lock_flag = 0
 down = 1
 up_flag = 0
 t = 0
@@ -347,6 +350,8 @@ def color_blue_move_pid():
 
 
 def April_tag_move():
+    global tag_lock_flag
+    tag_lock_flag=1
     if distance > 170:
         if mid < 160 - tag_width / 3:
             left(500)
@@ -529,7 +534,8 @@ def unify_all_gray():
 
 
 def check_time():
-    global check_left_time, check_right_time, check_down_time, down, escape_time, escape_flag_right, escape_flag_left
+    global check_left_time, check_right_time, check_down_time, down, escape_time, escape_flag_right, \
+        escape_flag_left, tag_lock_time, tag_lock_flag
     if io_data[6] == 0:
         check_left_time += 1
     else:
@@ -553,6 +559,11 @@ def check_time():
             escape_time = escape_value
             escape_flag_left = 0
             escape_flag_right = 0
+    if tag_lock_flag:
+        tag_lock_time -= 1
+        if tag_lock_time <= 0:
+            tag_lock_time = tag_lock_time_value
+            tag_lock_flag = 0
 
 
 def down_act():
@@ -597,7 +608,7 @@ def up_act():
                 April_tag_move()
             else:
                 April_tag_escape()
-        elif blue_detected:
+        elif blue_detected and not tag_lock_flag:
             color_blue_move()
         else:
             if io_data[0] == 0 and io_data[1] == 0:
