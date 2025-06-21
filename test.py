@@ -27,7 +27,7 @@ di_fang_kuai = 1  # 敌方块
 zhong_li_kuai = 2  # 中立块
 zha_dan_kuai = 0  # 炸弹块
 down_time_value = 250
-down_value = -600
+down_value = -1000
 escape_value = 100
 dead_area = 250
 escape_time = 50
@@ -39,7 +39,6 @@ flag = 0
 cnt = 0
 cx = 0
 cy = 0
-cap = None
 
 last_time = 0
 tai_flag = 0
@@ -318,7 +317,7 @@ def April_start_detect():
         #             print("敌方")
         #         elif tags[index].tag_id == 0:
         #             print("中立")
-        cv2.imshow("img", frame)
+        # cv2.imshow("img", frame)
         if cv2.waitKey(1) & 0xff == ord('q'):
             break
     cap.release()
@@ -470,7 +469,7 @@ def straight_if():
     if unify_all > down_value + 2000:
         straight(600, 600)
     else:
-        straight(500, 500)
+        straight(450, 450)
 
 
 def stop():
@@ -608,13 +607,15 @@ def down_act():
         time.sleep(1)
         tai_flag = 0
     if up_flag:
-        back(700)
+        back(800)
         up.CDS_SetAngle(3, 400, 700)  #
         up.CDS_SetAngle(4, 380, 700)
         time.sleep(0.4)
         up.CDS_SetAngle(3, 620, 700)  # 最低
         up.CDS_SetAngle(4, 180, 700)
         time.sleep(0.9)
+        back(300)
+        time.sleep(0.2)
         stop()
         time.sleep(0.3)
         up_flag = 0
@@ -677,7 +678,7 @@ def search_left_and_right():
                 t = 0
                 check_right_time = 0
                 break
-            if blue_detected and 150 < cx < 170:
+            if blue_detected and 140 < cx < 180:
                 t = 0
                 check_right_time = 0
                 break
@@ -691,7 +692,7 @@ def search_left_and_right():
                 t = 0
                 check_left_time = 0
                 break
-            if blue_detected and 150 < cx < 170:
+            if blue_detected and 140 < cx < 180:
                 t = 0
                 check_right_time = 0
                 break
