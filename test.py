@@ -351,7 +351,7 @@ def color_blue_move_pid():
 
 def April_tag_move():
     global tag_lock_flag
-    tag_lock_flag=1
+    tag_lock_flag = 1
     if distance > 170:
         if mid < 160 - tag_width / 3:
             left(500)
@@ -622,11 +622,11 @@ def up_act():
     elif io_data[3] == 1 and io_data[4] == 0:
         back_sleep()
         right(1000)
-        while_sleep_break(20)
+        while_sleep(20)
     elif io_data[3] == 0 and io_data[4] == 1:
         back_sleep()
         left(1000)
-        while_sleep_break(20)
+        while_sleep(20)
     else:
         back_sleep()
 
@@ -643,6 +643,10 @@ def search_left_and_right():
                 t = 0
                 check_right_time = 0
                 break
+            if blue_detected and 150 < cx < 170:
+                t = 0
+                check_left_time = 0
+                break
     elif check_left_time >= 3 and escape_flag_left == 0:
         while True:
             t += 1
@@ -650,6 +654,10 @@ def search_left_and_right():
             io_data = get_io_data(up)
             left(600)
             if io_data[0] == 0 and io_data[1] == 0 or t >= 300:
+                t = 0
+                check_left_time = 0
+                break
+            if blue_detected and 150 < cx < 170:
                 t = 0
                 check_left_time = 0
                 break
