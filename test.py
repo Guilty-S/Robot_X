@@ -1,4 +1,3 @@
-import datetime
 from re import search, escape
 
 import cv2
@@ -26,7 +25,7 @@ di_fang_kuai = 1  # 敌方块
 zhong_li_kuai = 2  # 中立块
 zha_dan_kuai = 0  # 炸弹块
 down_time_value = 250
-down_value = -50
+down_value = -600
 escape_value = 100
 dead_area = 250
 escape_time = 50
@@ -38,8 +37,8 @@ flag = 0
 cnt = 0
 cx = 0
 cy = 0
-check = 0
 
+last_time = 0
 tai_flag = 0
 tai_flag_time = 0
 escape_flag_right = 0
@@ -156,6 +155,18 @@ class ApriltagDetect:
                                 index = i
                         elif tags[index].tag_id == zhong_li_kuai:
                             index = i
+                else:
+                    x_distance = int(self.get_distance(tags[index].homography, 4300))
+                    x_mid = tuple(tags[index].corners[0].astype(int))[0] / 2 + \
+                            tuple(tags[index].corners[2].astype(int))[0] / 2  # 计算tag的横向位置
+                    if x_distance < 120 and 140 < x_mid < 180:
+                        index = i
+                if tags[0].tag_id == zha_dan_kuai:
+                    x_distance = int(self.get_distance(tags[0].homography, 4300))
+                    x_mid = tuple(tags[0].corners[0].astype(int))[0] / 2 + \
+                            tuple(tags[0].corners[2].astype(int))[0] / 2  # 计算tag的横向位置
+                    if x_distance < 120 and 140 < x_mid < 180:
+                        index = 0
             if tags[index].tag_id == di_fang_kuai or tags[index].tag_id == zhong_li_kuai:  # 冒泡后如果最近的id是中立或敌方
                 tag_safe = 1
             else:  # 冒泡后如果的id是炸弹块(侧面证明了没有检测到敌方和中立)
@@ -200,35 +211,15 @@ class ApriltagDetect:
         return distance
 
 
-def reconnect():
-    global last_valid_time,check
-    while True:
-        # print(1)
-        if (datetime.datetime.now() - last_valid_time).total_seconds() > 2.0:  # 1秒超时
-            check = 0
-            print("摄像头响应超时，判定为断开")
-            camera_safe = 0
-            time.sleep(0.2)
-            print("正在尝试重连")
-            subprocess.check_call("sudo modprobe -rf uvcvideo", shell=True)
-            time.sleep(0.5)
-            subprocess.check_call("sudo modprobe uvcvideo", shell=True)
-            time.sleep(0.5)
-            cap = cv2.VideoCapture('/dev/video0')
-            cap.set(3, 320)
-            cap.set(4, 240)
-
-
 def April_start_detect():
-    global frame, blue_detected, cx, cy, camera_safe, camera_reload, last_valid_time, check
+    global frame, blue_detected, cx, cy, camera_safe, camera_reload, last_time
     cap = cv2.VideoCapture('/dev/video0')
     cap.set(3, 320)
     cap.set(4, 240)
     cap.set(cv2.CAP_PROP_FPS, 60)
     ad = ApriltagDetect()
-    while True and check:
+    while True:
         ret, frame = cap.read()
-        # print(1)
         # if camera_reload:
         #     ret = 0
         #     camera_reload = 0
@@ -247,8 +238,8 @@ def April_start_detect():
             cap.set(4, 240)
             continue
         else:
-            last_valid_time = datetime.datetime.now()
             camera_safe = 1
+            last_time = time.time()
         frame = cv2.rotate(frame, cv2.ROTATE_180)
         ad.update_frame(frame)
         # time.sleep(0.01)
@@ -307,6 +298,25 @@ def April_start_detect():
     cv2.destroyAllWindows()
 
 
+# def reconnect():
+#     global last_time,camera_safe
+#     global cap
+#     while True:
+#         # print(time.time())
+#         if time.time() - last_time > 1:
+#             print("fdd")
+#             print("摄像头断开连接")
+#             camera_safe = 0
+#             cap.release()
+#             time.sleep(0.2)
+#             print("正在尝试重连")
+#             subprocess.check_call("sudo modprobe -rf uvcvideo", shell=True)
+#             time.sleep(0.5)
+#             subprocess.check_call("sudo modprobe uvcvideo", shell=True)
+#             time.sleep(0.5)
+#             cap = cv2.VideoCapture('/dev/video0')
+#             cap.set(3, 320)
+#             cap.set(4, 240)
 def color_blue_move():
     if cy > 120:
         if cx < 160 - 40:
@@ -590,13 +600,13 @@ def down_act():
         time.sleep(1)
         tai_flag = 0
     if up_flag:
-        back(900)
+        back(700)
         up.CDS_SetAngle(3, 400, 700)  #
         up.CDS_SetAngle(4, 380, 700)
         time.sleep(0.4)
         up.CDS_SetAngle(3, 620, 700)  # 最低
         up.CDS_SetAngle(4, 180, 700)
-        time.sleep(0.8)
+        time.sleep(0.9)
         stop()
         time.sleep(0.3)
         up_flag = 0
@@ -724,18 +734,17 @@ if __name__ == "__main__":
     # FONT_12X16  = 10
     # FONT_12X20  = 11
     print("test succeed")
-    last_valid_time = datetime.datetime.now()
     signal.signal(signal.SIGINT, signal_handler)
     target2 = threading.Thread(target=April_start_detect)
     target2.start()
-    target3 = threading.Thread(target=reconnect)
-    target3.start()
+    # target3 = threading.Thread(target=reconnect)
+    # target3.start()
     print("Ready——")
-    # while True:
-    #     io_data = get_io_data(up)
-    #     if io_data[6] == 0 and io_data[7] == 0:
-    #         break
-    # print("Go!!")
+    while True:
+        io_data = get_io_data(up)
+        if io_data[6] == 0 and io_data[7] == 0:
+            break
+    print("Go!!")
     while True:
         adc_value = up.ADC_Get_All_Channle()
         mix_all_gray()
