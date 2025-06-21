@@ -1,6 +1,3 @@
-from re import search, escape
-
-import os
 import cv2
 import subprocess
 import uptech
@@ -34,6 +31,7 @@ cnt = 0
 cx = 0
 cy = 0
 
+camera_reload = 1
 tai_flag = 0
 tai_flag_time = 0
 escape_flag_right = 0
@@ -154,14 +152,14 @@ class ApriltagDetect:
                 else:
                     x_distance = int(self.get_distance(tags[index].homography, 4300))
                     x_mid = tuple(tags[index].corners[0].astype(int))[0] / 2 + \
-                          tuple(tags[index].corners[2].astype(int))[0] / 2  # 计算tag的横向位置
-                    if x_distance <120:
+                            tuple(tags[index].corners[2].astype(int))[0] / 2  # 计算tag的横向位置
+                    if x_distance < 120:
                         index = i
-                if tags[0].tag_id==zha_dan_kuai:
+                if tags[0].tag_id == zha_dan_kuai:
                     x_distance = int(self.get_distance(tags[0].homography, 4300))
                     x_mid = tuple(tags[0].corners[0].astype(int))[0] / 2 + \
-                          tuple(tags[0].corners[2].astype(int))[0] / 2  # 计算tag的横向位置
-                    if x_distance <120:
+                            tuple(tags[0].corners[2].astype(int))[0] / 2  # 计算tag的横向位置
+                    if x_distance < 120:
                         index = 0
             if tags[index].tag_id == di_fang_kuai or tags[index].tag_id == zhong_li_kuai:  # 冒泡后如果最近的id是中立或敌方
                 tag_safe = 1
@@ -208,9 +206,7 @@ class ApriltagDetect:
 
 
 def April_start_detect():
-    global frame, blue_detected, cx, cy, camera_safe
-    os.system("sudo modprobe -rf uvcvideo")
-    time.sleep(1)  # 等待驱动加载完成
+    global frame, blue_detected, cx, cy, camera_safe, camera_reload
     cap = cv2.VideoCapture('/dev/video0')
     cap.set(3, 320)
     cap.set(4, 240)
@@ -218,6 +214,9 @@ def April_start_detect():
     ad = ApriltagDetect()
     while True:
         ret, frame = cap.read()
+        if camera_reload:
+            camera_reload = 0
+            ret = 0
         if not ret or frame is None:
             print("摄像头断开连接")
             camera_safe = 0
@@ -235,7 +234,6 @@ def April_start_detect():
         frame = cv2.rotate(frame, cv2.ROTATE_180)
         # time.sleep(0.05)
         ad.update_frame(frame)
-        # print(1)
         # 转换为HSV颜色空间（更适合颜色检测）
         hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
         # 定义蓝色的HSV范围（示例值，需根据实际调整）
@@ -293,10 +291,10 @@ def April_start_detect():
 
 def color_blue_move():
     if cy > 120:
-        if cx < 160 - 50:
+        if cx < 160 - 40:
             left(500)
             # print("左")
-        elif cx > 160 + 50:
+        elif cx > 160 + 40:
             right(500)
             # print("右")
         else:
@@ -672,18 +670,20 @@ def while_sleep(sleep_t):
         #     break
 
 
-def go_around(go_t):
-    while go_t > 0:
-        go_t -= 1
-        if io_data[3] == 0 and io_data[4] == 0:
-            straight_if()
-        elif io_data[3] == 1 and io_data[4] == 0 and not escape_flag_right:
-            right(500)
-        elif io_data[3] == 0 and io_data[4] == 1 and not escape_flag_left:
-            left(500)
-        else:
-            back(500)
-            time.sleep(0.5)
+def while_sleep_break(sleep_t):
+    global cnt, adc_value, io_data
+    while sleep_t >= 0:
+        cnt += 1
+        if cnt % 5000 == 0:  # 0.01秒钟打印一次
+            cnt = 0
+            adc_value = up.ADC_Get_All_Channle()
+            mix_all_gray()
+            unify_all_gray()
+            io_data = get_io_data(up)
+            check_time()
+            sleep_t -= 1
+        if blue_detected and 150 < cx < 170:
+            break
 
 
 if __name__ == "__main__":
@@ -741,6 +741,7 @@ if __name__ == "__main__":
         # up.CDS_SetAngle(4, 600, 700)
         # print(mix_adc_0)
         # 0、1 正前方红外   3、4斜向下   6、7左右
+        print(adc_value)
         # print(io_data)
         # print(escape_time)
         # print(camera_safe)
