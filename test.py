@@ -201,8 +201,8 @@ class ApriltagDetect:
 def April_start_detect():
     global frame, blue_detected, cx, cy, camera_safe, camera_reload
     cap = cv2.VideoCapture('/dev/video0')
-    cap.set(3, 320)
-    cap.set(4, 240)
+    cap.set(3, 640)
+    cap.set(4, 480)
     cap.set(cv2.CAP_PROP_FPS, 60)
     ad = ApriltagDetect()
     while True:
@@ -221,8 +221,6 @@ def April_start_detect():
             subprocess.check_call("sudo modprobe uvcvideo", shell=True)
             time.sleep(0.5)
             cap = cv2.VideoCapture('/dev/video0')
-            cap.set(3, 320)
-            cap.set(4, 240)
             continue
         else:
             camera_safe = 1
@@ -285,36 +283,12 @@ def April_start_detect():
 
 
 def color_blue_move():
-    if cy > 120:
-        if cx < 160 - 40:
-            left(500)
-            # print("左")
-        elif cx > 160 + 40:
-            right(500)
-            # print("右")
-        else:
-            straight_if()
-            # print("前进")
-    elif cy > 80:
-        if cx < 160 - 30:
-            left(500)
-            # print("左")
-        elif cx > 160 + 30:
-            right(500)
-            # print("右")
-        else:
-            straight_if()
-            # print("前进")
+    if cx < 320 - 40:
+        left(500)
+    elif cx > 320 + 40:
+        right(500)
     else:
-        if cx < 160 - 20:
-            left(500)
-            # print("左")
-        elif cx > 160 + 20:
-            right(500)
-            # print("右")
-        else:
-            straight_if()
-            # print("前进")
+        straight_if()
 
 
 def color_blue_move_pid():
@@ -344,11 +318,11 @@ def color_blue_move_pid():
 def April_tag_move():
     global tag_lock_flag
     tag_lock_flag = 1
-    if distance > 170:
-        if mid < 160 - tag_width / 3:
+    if distance > 90:
+        if mid < 320 - tag_width / 3:
             left(500)
             # print("左")
-        elif mid > 160 + tag_width / 3:
+        elif mid > 320 + tag_width / 3:
             right(500)
             # print("右")
         else:
@@ -396,8 +370,8 @@ def April_tag_move_pid():
 
 def April_tag_escape():
     global escape_flag_right, escape_flag_left
-    if distance < 170:
-        if mid < 160:
+    if distance < 90:
+        if mid < 320:
             right(1000)
             escape_flag_left = 1
         else:
@@ -636,7 +610,7 @@ def search_left_and_right():
                 t = 0
                 check_right_time = 0
                 break
-            if blue_detected and 150 < cx < 170:
+            if blue_detected and 320 - 20 < cx < 320 + 20:
                 t = 0
                 check_right_time = 0
                 break
@@ -650,7 +624,7 @@ def search_left_and_right():
                 t = 0
                 check_left_time = 0
                 break
-            if blue_detected and 150 < cx < 170:
+            if blue_detected and 320 - 20 < cx < 320 + 20:
                 t = 0
                 check_right_time = 0
                 break
@@ -707,10 +681,10 @@ if __name__ == "__main__":
     # target3 = threading.Thread(target=search_inf)
     # target3.start()
     print("Ready——")
-    while True:
-        io_data = get_io_data(up)
-        if io_data[6] == 0 and io_data[7] == 0:
-            break
+    # while True:
+    #     io_data = get_io_data(up)
+    #     if io_data[6] == 0 and io_data[7] == 0:
+    #         break
     print("Go!!")
     while True:
         adc_value = up.ADC_Get_All_Channle()
