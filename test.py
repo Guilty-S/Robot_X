@@ -304,20 +304,20 @@ def April_start_detect():
         # 显示结果
         # cv2.imshow('Camera', frame)
         # cv2.imshow('Mask', mask)
-        # if tags:
-        #     # print(tags)
-        #     # print(index)
-        #     print(f"中心位置{mid}")
-        #     print(f"距离{distance}")
-        #     print(f"宽度{tag_width}")
-        #     if tag_safe == 0:
-        #         print("炸弹")
-        #     else:
-        #         if tags[index].tag_id == 1:
-        #             print("敌方")
-        #         elif tags[index].tag_id == 0:
-        #             print("中立")
-        # cv2.imshow("img", frame)
+        if tags:
+            # print(tags)
+            # print(index)
+            print(f"中心位置{mid}")
+            print(f"距离{distance}")
+            print(f"宽度{tag_width}")
+            if tag_safe == 0:
+                print("炸弹")
+            else:
+                if tags[index].tag_id == 1:
+                    print("敌方")
+                elif tags[index].tag_id == 0:
+                    print("中立")
+        cv2.imshow("img", frame)
         if cv2.waitKey(1) & 0xff == ord('q'):
             break
     cap.release()
@@ -781,12 +781,12 @@ if __name__ == "__main__":
         # 0、1 正前方红外   3、4斜向下   6、7左右
         # print(unify_all)
         # print(escape_time)
-        if camera_safe:
-            check_time()
-            if down:
-                down_act()
-            else:
-                up_act()
-        else:
-            print("stop")
-            stop()
+        # if camera_safe:
+        #     check_time()
+        #     if down:
+        #         down_act()
+        #     else:
+        #         up_act()
+        # else:
+        #     print("stop")
+        #     stop()
