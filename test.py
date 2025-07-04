@@ -1,5 +1,3 @@
-from re import search, escape
-
 import cv2
 import subprocess
 import uptech
@@ -12,7 +10,7 @@ import threading
 cap = None
 camera_time = 0
 camera_reload = 1
-camera_safe = 1
+camera_safe = 0
 tag_safe = 0
 tag_flag = 1
 blue_detected = 0
@@ -27,7 +25,7 @@ di_fang_kuai = 1  # 敌方块
 zhong_li_kuai = 2  # 中立块
 zha_dan_kuai = 0  # 炸弹块
 down_time_value = 250
-down_value = -1000
+down_value = -1100
 escape_value = 100
 dead_area = 250
 escape_time = 50
@@ -213,17 +211,9 @@ class ApriltagDetect:
         return distance
 
 
-def reconnect():
+def Reconnect():
     global last_time, camera_safe,camera_time
-    global cap
-#     # while True:
-#     #     if camera_safe:
-#     #         break
-#     cap = cv2.VideoCapture('/dev/video0')
-#     cap.set(3, 320)
-#     cap.set(4, 240)
-#     cap.set(cv2.CAP_PROP_FPS, 60)
-#     # cap = None
+    global cap,ret,frame
     last_value = 0
     time.sleep(4)
     while True:
@@ -231,15 +221,24 @@ def reconnect():
         if last_value == camera_time:
             print("摄像头断开连接")
             camera_safe = 0
+            cap.release()
+            time.sleep(0.1)
+            print("正在尝试重连")
+            subprocess.check_call("sudo modprobe -rf uvcvideo", shell=True)
+            time.sleep(0.4)
+            subprocess.check_call("sudo modprobe uvcvideo", shell=True)
+            time.sleep(0.2)
+            cap = cv2.VideoCapture('/dev/video0')
+            cap.set(3, 320)
+            cap.set(4, 240)
+            continue
         else:
             camera_safe = 1
             last_value = camera_time
-#         # print(f'time{time.time()}')
-#         # print(f'last{last_time}')
 
 
 def April_start_detect():
-    global frame, blue_detected, cx, cy, camera_safe, camera_reload, last_time, camera_time
+    global frame, blue_detected, cx, cy, camera_safe, camera_reload, last_time, camera_time,cap
     cap = cv2.VideoCapture('/dev/video0')
     cap.set(3, 320)
     cap.set(4, 240)
@@ -248,27 +247,8 @@ def April_start_detect():
     while True:
         ret, frame = cap.read()
         camera_time += 1
-        # print(camera_time)
-        # if camera_reload:
-        #     ret = 0
-        #     camera_reload = 0
-        if not ret or frame is None:
-            print("摄像头断开连接")
-            camera_safe = 0
-            cap.release()
-            time.sleep(0.2)
-            print("正在尝试重连")
-            subprocess.check_call("sudo modprobe -rf uvcvideo", shell=True)
-            time.sleep(0.5)
-            subprocess.check_call("sudo modprobe uvcvideo", shell=True)
-            time.sleep(0.5)
-            cap = cv2.VideoCapture('/dev/video0')
-            cap.set(3, 320)
-            cap.set(4, 240)
-            continue
         frame = cv2.rotate(frame, cv2.ROTATE_180)
         ad.update_frame(frame)
-        # time.sleep(0.01)
         # 转换为HSV颜色空间（更适合颜色检测）
         hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
         # 定义蓝色的HSV范围（示例值，需根据实际调整）
@@ -304,19 +284,19 @@ def April_start_detect():
         # 显示结果
         # cv2.imshow('Camera', frame)
         # cv2.imshow('Mask', mask)
-        if tags:
-            # print(tags)
-            # print(index)
-            print(f"中心位置{mid}")
-            print(f"距离{distance}")
-            print(f"宽度{tag_width}")
-            if tag_safe == 0:
-                print("炸弹")
-            else:
-                if tags[index].tag_id == 1:
-                    print("敌方")
-                elif tags[index].tag_id == 0:
-                    print("中立")
+        # if tags:
+        #     # print(tags)
+        #     # print(index)
+        #     print(f"中心位置{mid}")
+        #     print(f"距离{distance}")
+        #     print(f"宽度{tag_width}")
+        #     if tag_safe == 0:
+        #         print("炸弹")
+        #     else:
+        #         if tags[index].tag_id == 1:
+        #             print("敌方")
+        #         elif tags[index].tag_id == 0:
+        #             print("中立")
         cv2.imshow("img", frame)
         if cv2.waitKey(1) & 0xff == ord('q'):
             break
@@ -466,7 +446,7 @@ def straight_if():
     # elif unify_all > 2800:
     #     straight(700, 700)
     # else:
-    if unify_all > down_value + 2000:
+    if unify_all > down_value + 2500:
         straight(600, 600)
     else:
         straight(450, 450)
@@ -678,7 +658,7 @@ def search_left_and_right():
                 t = 0
                 check_right_time = 0
                 break
-            if blue_detected and 140 < cx < 180:
+            if blue_detected and 150 < cx < 170:
                 t = 0
                 check_right_time = 0
                 break
@@ -692,7 +672,7 @@ def search_left_and_right():
                 t = 0
                 check_left_time = 0
                 break
-            if blue_detected and 140 < cx < 180:
+            if blue_detected and 150 < cx < 170:
                 t = 0
                 check_right_time = 0
                 break
@@ -700,7 +680,7 @@ def search_left_and_right():
         straight_if()
 
 
-def search_inf():
+def Search_inf():
     global adc_value, io_data
     adc_value = up.ADC_Get_All_Channle()
     mix_all_gray()
@@ -746,13 +726,13 @@ if __name__ == "__main__":
     signal.signal(signal.SIGINT, signal_handler)
     target2 = threading.Thread(target=April_start_detect)
     target2.start()
-    target3 = threading.Thread(target=reconnect)
+    target3 = threading.Thread(target=Reconnect)
     target3.start()
     print("Ready——")
-    while True:
-        io_data = get_io_data(up)
-        if io_data[6] == 0 and io_data[7] == 0:
-            break
+    # while True:
+    #     io_data = get_io_data(up)
+    #     if io_data[6] == 0 and io_data[7] == 0:
+    #         break
     print("Go!!")
     while True:
         adc_value = up.ADC_Get_All_Channle()
@@ -781,12 +761,13 @@ if __name__ == "__main__":
         # 0、1 正前方红外   3、4斜向下   6、7左右
         # print(unify_all)
         # print(escape_time)
-        # if camera_safe:
-        #     check_time()
-        #     if down:
-        #         down_act()
-        #     else:
-        #         up_act()
-        # else:
-        #     print("stop")
-        #     stop()
+        # print(camera_safe)
+        if camera_safe:
+            check_time()
+            if down:
+                down_act()
+            else:
+                up_act()
+        else:
+            # print("stop")
+            stop()
