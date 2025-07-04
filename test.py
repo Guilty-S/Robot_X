@@ -7,7 +7,7 @@ import numpy as np
 import signal
 import threading
 
-cap = None
+camera_reset = 0
 camera_time = 0
 camera_reload = 1
 camera_safe = 0
@@ -211,14 +211,25 @@ class ApriltagDetect:
         return distance
 
 
-def Reconnect():
-    global last_time, camera_safe,camera_time
-    global cap,ret,frame
-    last_value = 0
-    time.sleep(4)
+def April_start_detect():
+    global frame, blue_detected, cx, cy, camera_safe, camera_reload, last_time, camera_time, cap, camera_reset
+    cap = cv2.VideoCapture('/dev/video0')
+    cap.set(3, 320)
+    cap.set(4, 240)
+    cap.set(cv2.CAP_PROP_FPS, 60)
+    ad = ApriltagDetect()
     while True:
-        time.sleep(0.2)
-        if last_value == camera_time:
+        ret, frame = cap.read()
+        if camera_reset:
+            cap.set(3, 320)
+            cap.set(4, 240)
+            cap.set(cv2.CAP_PROP_FPS, 60)
+            time.sleep(0.5)
+            camera_reset = 0
+        if camera_reload:
+            camera_reload = 0
+            ret = 0
+        if not ret or frame is None:
             print("摄像头断开连接")
             camera_safe = 0
             cap.release()
@@ -229,24 +240,10 @@ def Reconnect():
             subprocess.check_call("sudo modprobe uvcvideo", shell=True)
             time.sleep(0.2)
             cap = cv2.VideoCapture('/dev/video0')
-            cap.set(3, 320)
-            cap.set(4, 240)
+            camera_reset = 1
             continue
         else:
             camera_safe = 1
-            last_value = camera_time
-
-
-def April_start_detect():
-    global frame, blue_detected, cx, cy, camera_safe, camera_reload, last_time, camera_time,cap
-    cap = cv2.VideoCapture('/dev/video0')
-    cap.set(3, 320)
-    cap.set(4, 240)
-    cap.set(cv2.CAP_PROP_FPS, 60)
-    ad = ApriltagDetect()
-    while True:
-        ret, frame = cap.read()
-        camera_time += 1
         frame = cv2.rotate(frame, cv2.ROTATE_180)
         ad.update_frame(frame)
         # 转换为HSV颜色空间（更适合颜色检测）
@@ -437,15 +434,6 @@ def straight(speed_1, speed_2):
 
 def straight_if():
     global buffer
-    # if buffer > 0:
-    #     straight(400, 400)
-    #     buffer -= 1
-    # else:
-    # if unify_all > 3500:
-    #     straight(900, 900)
-    # elif unify_all > 2800:
-    #     straight(700, 700)
-    # else:
     if unify_all > down_value + 2500:
         straight(600, 600)
     else:
@@ -726,8 +714,8 @@ if __name__ == "__main__":
     signal.signal(signal.SIGINT, signal_handler)
     target2 = threading.Thread(target=April_start_detect)
     target2.start()
-    target3 = threading.Thread(target=Reconnect)
-    target3.start()
+    # target3 = threading.Thread(target=Reconnect)
+    # target3.start()
     print("Ready——")
     # while True:
     #     io_data = get_io_data(up)
@@ -769,5 +757,4 @@ if __name__ == "__main__":
             else:
                 up_act()
         else:
-            # print("stop")
             stop()
