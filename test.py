@@ -8,7 +8,6 @@ import signal
 import threading
 
 camera_reset = 0
-camera_time = 0
 camera_reload = 1
 camera_safe = 0
 tag_safe = 0
@@ -24,8 +23,8 @@ distance = 0
 di_fang_kuai = 1  # 敌方块
 zhong_li_kuai = 2  # 中立块
 zha_dan_kuai = 0  # 炸弹块
-down_time_value = 250
-down_value = -1100
+down_time_value = 200000
+down_value = 200
 escape_value = 100
 dead_area = 250
 escape_time = 50
@@ -38,7 +37,6 @@ cnt = 0
 cx = 0
 cy = 0
 
-last_time = 0
 tai_flag = 0
 tai_flag_time = 0
 escape_flag_right = 0
@@ -294,7 +292,7 @@ def April_start_detect():
         #             print("敌方")
         #         elif tags[index].tag_id == 0:
         #             print("中立")
-        cv2.imshow("img", frame)
+        # cv2.imshow("img", frame)
         if cv2.waitKey(1) & 0xff == ord('q'):
             break
     cap.release()
@@ -546,7 +544,7 @@ def check_time():
     else:
         check_right_time = 0
     if unify_all < down_value:
-        check_down_time += 1
+        check_down_time += down_value-unify_all
     else:
         check_down_time = 0
         down = 0
@@ -611,8 +609,8 @@ def up_act():
                 April_tag_move()
             else:
                 April_tag_escape()
-        elif blue_detected and not tag_lock_flag:
-            color_blue_move()
+        # elif blue_detected and not tag_lock_flag:
+        #     color_blue_move()
         else:
             if io_data[0] == 0 and io_data[1] == 0:
                 straight_if()
@@ -670,10 +668,16 @@ def search_left_and_right():
 
 def Search_inf():
     global adc_value, io_data
-    adc_value = up.ADC_Get_All_Channle()
-    mix_all_gray()
-    unify_all_gray()
-    io_data = get_io_data(up)
+    while True:
+        adc_value = up.ADC_Get_All_Channle()
+        mix_all_gray()
+        unify_all_gray()
+        io_data = get_io_data(up)
+        check_time()
+        # print(check_down_time)
+        # print(adc_value)
+        # print(unify_all)
+
 
 
 def while_sleep(sleep_t):
@@ -682,11 +686,11 @@ def while_sleep(sleep_t):
         cnt += 1
         if cnt % 5000 == 0:  # 0.01秒钟打印一次
             cnt = 0
-            adc_value = up.ADC_Get_All_Channle()
-            mix_all_gray()
-            unify_all_gray()
-            io_data = get_io_data(up)
-            check_time()
+            # adc_value = up.ADC_Get_All_Channle()
+            # mix_all_gray()
+            # unify_all_gray()
+            # io_data = get_io_data(up)
+            # check_time()
             sleep_t -= 1
         # if io_data[0] == 0 or io_data[1] == 0 or io_data[6] == 0 or io_data[7] == 0:
         #     break
@@ -714,8 +718,8 @@ if __name__ == "__main__":
     signal.signal(signal.SIGINT, signal_handler)
     target2 = threading.Thread(target=April_start_detect)
     target2.start()
-    # target3 = threading.Thread(target=Reconnect)
-    # target3.start()
+    target3 = threading.Thread(target=Search_inf)
+    target3.start()
     print("Ready——")
     # while True:
     #     io_data = get_io_data(up)
@@ -723,10 +727,6 @@ if __name__ == "__main__":
     #         break
     print("Go!!")
     while True:
-        adc_value = up.ADC_Get_All_Channle()
-        mix_all_gray()
-        unify_all_gray()
-        io_data = get_io_data(up)
         up.LCD_SetFont(up.FONT_12X20)
         up.LCD_SetForeColor(up.COLOR_GBLUE)
         # up.LCD_PutString(0, 0, 'Go North All')
@@ -750,8 +750,8 @@ if __name__ == "__main__":
         # print(unify_all)
         # print(escape_time)
         # print(camera_safe)
+
         if camera_safe:
-            check_time()
             if down:
                 down_act()
             else:
