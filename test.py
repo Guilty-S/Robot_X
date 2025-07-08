@@ -296,12 +296,17 @@ def blue_detect():
 
 
 def April_start_detect():
-    global frame, blue_detected, cx, cy, camera_safe, camera_reload, last_time, camera_time, cap, camera_reset
+    global frame, blue_detected, cx, cy, camera_safe, camera_reload, last_time, camera_time, cap, camera_reset, black_detect
+
+    # 初始化黑色检测结果为-1
+    black_detect = 0
+
     cap = cv2.VideoCapture('/dev/video0')
     cap.set(3, 320)
     cap.set(4, 240)
     cap.set(cv2.CAP_PROP_FPS, 60)
     ad = ApriltagDetect()
+
     while True:
         ret, frame = cap.read()
         if camera_reset:
@@ -310,9 +315,7 @@ def April_start_detect():
             cap.set(cv2.CAP_PROP_FPS, 60)
             time.sleep(0.5)
             camera_reset = 0
-        # if camera_reload:
-        #     camera_reload = 0
-        #     ret = 0
+
         if not ret or frame is None:
             print("摄像头断开连接")
             camera_safe = 0
@@ -328,33 +331,72 @@ def April_start_detect():
             continue
         else:
             camera_safe = 1
+
         frame = cv2.rotate(frame, cv2.ROTATE_180)
         ad.update_frame(frame)
-        # if tags:
-        #     # print(tags)
-        #     # print(index)
-        #     print(f"中心位置{mid}")
-        #     print(f"距离{distance}")
-        #     print(f"宽度{tag_width}")
-        #     if tag_safe == 0:
-        #         print("炸弹")
-        #     else:
-        #         if tags[index].tag_id == di_fang_kuai:
-        #             print("敌方")
-        #         elif tags[index].tag_id == zhong_li_kuai:
-        #             print("中立")
+
+        # 转换为HSV颜色空间
+        hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+
+        # 定义黑色的HSV范围（黑色检测）
+        # 黑色通常具有较低的亮度值（V通道）
+        lower_black = np.array([0, 0, 0])
+        upper_black = np.array([179, 162, 168])  # V值上限设为50（较暗的区域）
+
+        # 创建掩膜
+        mask = cv2.inRange(hsv, lower_black, upper_black)
+
+        # 形态学操作（可选，用于降噪）
+        kernel = np.ones((5, 5), np.uint8)
+        mask = cv2.erode(mask, kernel, iterations=1)
+        mask = cv2.dilate(mask, kernel, iterations=1)
+
+        # ========== 新增：计算黑色区域占比 ==========
+        total_pixels = frame.shape[0] * frame.shape[1]
+        black_pixels = cv2.countNonZero(mask)
+        black_ratio = black_pixels / total_pixels
+        black_percentage = black_ratio * 100
+
+        # 检查黑色占比是否超过阈值
+        if black_percentage > 85:
+            # print(f"黑色区域占比: {black_percentage:.2f}% > 70% - 设置 black_detect=1")
+            black_detect = 1  # 设置全局变量为1
+        else:
+            black_detect = 0  # 设置全局变量为-1
+
+        # 在画面中显示黑色占比信息
+        cv2.putText(frame, f"Black: {black_percentage:.2f}%", (10, 30),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.85, (0, 0, 0), 2)
+        # ========================================
+
+        # 查找轮廓
+        contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        blue_detected = 0  # 注意：这个变量名可能需要改为black_detected
+
+        # 标记坐标的列表
+        coordinates = []
+        if contours:
+            # 找到最大轮廓
+            largest_contour = max(contours, key=cv2.contourArea)
+            # 计算轮廓中心
+            M = cv2.moments(largest_contour)
+            if M["m00"] != 0:
+                cx = int(M["m10"] / M["m00"])
+                cy = int(M["m01"] / M["m00"])
+                blue_detected = 1  # 1表示检测到黑色物体
+                coordinates.append((cx, cy))
+                # 在画面中标记中心点
+                cv2.circle(frame, (cx, cy), 7, (0, 0, 255), -1)
+                cv2.putText(frame, f"({cx}, {cy})", (cx - 50, cy - 20),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+
         # cv2.imshow("img", frame)
 
-        # 添加这一部分用于检测黑色比例
-        # black_ratio = detect_black_ratio(frame)
-        # print(f"黑色比例: {black_ratio}")
-        # if black_ratio >= 0.7:
-        #     over_70_percent_black = 1
-        # else:
-        #     over_70_percent_black = 0
+        # 检查是否达到黑色占比条件
 
         if cv2.waitKey(1) & 0xff == ord('q'):
             break
+
     cap.release()
     cv2.destroyAllWindows()
 
@@ -544,7 +586,7 @@ def check_time():
         down = 0
     #
     if check_up_time >= 30:
-            up_flag = 1
+        up_flag = 1
     if not down:
         if check_down_time >= down_time_value:
             down = 1
@@ -564,7 +606,7 @@ def check_time():
 
 
 def down_act():
-    global tai_flag, go_up_flag, buffer, down
+    global tai_flag, go_up_flag, buffer, down,black_detect
     if go_up_flag:
         back(1000)
         while_sleep(400)
@@ -580,7 +622,7 @@ def down_act():
         down = 0
         buffer = 20
     else:
-        if io_data[0] == 0 and io_data[1] == 0:
+        if io_data[0] == 0 and io_data[1] == 0 and black_detect:
             go_up_flag = 1
         else:
             right(800)
@@ -604,9 +646,9 @@ def up_act():
             if io_data[0] == 0 and io_data[1] == 0:
                 straight_if()
             elif io_data[0] == 1 and io_data[1] == 0 and not escape_flag_right:
-                right(500)
+                right(1000)
             elif io_data[0] == 0 and io_data[1] == 1 and not escape_flag_left:
-                left(500)
+                left(1000)
             else:
                 search_left_and_right()
     elif io_data[3] == 1 and io_data[4] == 0:
@@ -619,7 +661,6 @@ def up_act():
         time.sleep(0.2)
     else:
         back_sleep()
-
 
 
 def search_left_and_right():
@@ -665,6 +706,7 @@ def Search_inf():
         unify_all_gray()
         io_data = get_io_data(up)
         check_time()
+        print(go_up_flag)
         # print(up_flag)
         # print(check_up_time)
         end_time = time.time()  # 记录循环结束的时间
