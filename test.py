@@ -7,14 +7,17 @@ import numpy as np
 import signal
 import threading
 
-your_team_blue = 1  # 1为蓝队，0为黄队
+your_team_blue = 0  # 1为蓝队，0为黄队
 down_time_value = 100 * 250  # 灰度误差累加
-down_value = 500  # 灰度台上台下临界值
+down_value = 200  # 灰度台上台下临界值
 escape_value = 100  # 逃逸时间重置
 dead_area = 250  # 死区电压
 escape_time = 100  # 逃逸时间
-tag_lock_time_value = 30  # 持续锁定
+tag_lock_time_value = 200  # 持续锁定
 
+io_data = []
+adc_value = []
+go_flag = 0
 up_flag = 0
 check_up_time = 0
 execution_time = 0
@@ -129,7 +132,7 @@ class ApriltagDetect:
         mid0 = 0
         mid1 = 0
         mid2 = 0
-        global tag_flag, tag_safe
+        global tag_flag, tag_safe, go_flag
         global index
         global mid
         global tag_width
@@ -218,7 +221,7 @@ class ApriltagDetect:
 
 def April_start_detect():
     global frame, blue_detected, cx, cy, camera_safe, camera_reload, last_time, camera_time, cap, camera_reset, black_detect
-
+    global go_flag, tag_lock_flag
     # 初始化黑色检测结果为-1
     black_detect = 0
 
@@ -255,71 +258,74 @@ def April_start_detect():
         frame = cv2.rotate(frame, cv2.ROTATE_180)
         ad.update_frame(frame)
 
-        # 转换为HSV颜色空间
-        hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+        if down:
+            # 转换为HSV颜色空间
+            hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
 
-        # 定义黑色的HSV范围（黑色检测）
-        # 黑色通常具有较低的亮度值（V通道）
-        lower_black = np.array([0, 0, 0])
-        upper_black = np.array([179, 162, 168])  # V值上限设为50（较暗的区域）
+            # 定义黑色的HSV范围（黑色检测）
+            # 黑色通常具有较低的亮度值（V通道）
+            lower_black = np.array([0, 0, 0])
+            upper_black = np.array([179, 162, 168])  # V值上限设为50（较暗的区域）
 
-        # 创建掩膜
-        mask = cv2.inRange(hsv, lower_black, upper_black)
+            # 创建掩膜
+            mask = cv2.inRange(hsv, lower_black, upper_black)
 
-        # 形态学操作（可选，用于降噪）
-        kernel = np.ones((5, 5), np.uint8)
-        mask = cv2.erode(mask, kernel, iterations=1)
-        mask = cv2.dilate(mask, kernel, iterations=1)
+            # 形态学操作（可选，用于降噪）
+            kernel = np.ones((5, 5), np.uint8)
+            mask = cv2.erode(mask, kernel, iterations=1)
+            mask = cv2.dilate(mask, kernel, iterations=1)
 
-        # ========== 新增：计算黑色区域占比 ==========
-        total_pixels = frame.shape[0] * frame.shape[1]
-        black_pixels = cv2.countNonZero(mask)
-        black_ratio = black_pixels / total_pixels
-        black_percentage = black_ratio * 100
+            # ========== 新增：计算黑色区域占比 ==========
+            total_pixels = frame.shape[0] * frame.shape[1]
+            black_pixels = cv2.countNonZero(mask)
+            black_ratio = black_pixels / total_pixels
+            black_percentage = black_ratio * 100
 
-        # 检查黑色占比是否超过阈值
-        if black_percentage > 85:
-            # print(f"黑色区域占比: {black_percentage:.2f}% > 70% - 设置 black_detect=1")
-            black_detect = 1  # 设置全局变量为1
-        else:
-            black_detect = 0  # 设置全局变量为-1
+            # 检查黑色占比是否超过阈值
+            if black_percentage > 85:
+                # print(f"黑色区域占比: {black_percentage:.2f}% > 70% - 设置 black_detect=1")
+                black_detect = 1  # 设置全局变量为1
+            else:
+                black_detect = 0  # 设置全局变量为-1
 
-        # 在画面中显示黑色占比信息
-        cv2.putText(frame, f"Black: {black_percentage:.2f}%", (10, 30),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.85, (0, 0, 0), 2)
-        # ========================================
+            # 在画面中显示黑色占比信息
+            cv2.putText(frame, f"Black: {black_percentage:.2f}%", (10, 30),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.85, (0, 0, 0), 2)
+            # ========================================
 
-        # 查找轮廓
-        contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        # 标记坐标的列表
-        coordinates = []
-        if contours:
-            # 找到最大轮廓
-            largest_contour = max(contours, key=cv2.contourArea)
-            # 计算轮廓中心
-            M = cv2.moments(largest_contour)
-            if M["m00"] != 0:
-                cx = int(M["m10"] / M["m00"])
-                cy = int(M["m01"] / M["m00"])
-                blue_detected = 1  # 1表示检测到黑色物体
-                coordinates.append((cx, cy))
-                # 在画面中标记中心点
-                cv2.circle(frame, (cx, cy), 7, (0, 0, 255), -1)
-                cv2.putText(frame, f"({cx}, {cy})", (cx - 50, cy - 20),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
-        # if tags:
-        #     # print(tags)
-        #     # print(index)
-        #     print(f"中心位置{mid}")
-        #     print(f"距离{distance}")
-        #     print(f"宽度{tag_width}")
-        #     if tag_safe == 0:
-        #         print("炸弹")
-        #     else:
-        #         if tags[index].tag_id == 1:
-        #             print("敌方")
-        #         elif tags[index].tag_id == 0:
-        #             print("中立")
+            # 查找轮廓
+            contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            # 标记坐标的列表
+            coordinates = []
+            if contours:
+                # 找到最大轮廓
+                largest_contour = max(contours, key=cv2.contourArea)
+                # 计算轮廓中心
+                M = cv2.moments(largest_contour)
+                if M["m00"] != 0:
+                    cx = int(M["m10"] / M["m00"])
+                    cy = int(M["m01"] / M["m00"])
+                    blue_detected = 1  # 1表示检测到黑色物体
+                    coordinates.append((cx, cy))
+                    # 在画面中标记中心点
+                    cv2.circle(frame, (cx, cy), 7, (0, 0, 255), -1)
+                    cv2.putText(frame, f"({cx}, {cy})", (cx - 50, cy - 20),
+                                cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+        if tags:
+            # print(tags)
+            # print(index)
+            # print(go_flag)
+            # print(f"中心位置{mid}")
+            # print(f"距离{distance}")
+            # print(f"宽度{tag_width}")
+            # if tag_safe == 0:
+            #     print("炸弹")
+            # else:
+            if tags[index].tag_id == di_fang_kuai:
+                tag_lock_flag = 1
+                # print("敌方")
+                # print("中立")
+
         # cv2.imshow("img", frame)
 
         # 检查是否达到黑色占比条件
@@ -332,8 +338,6 @@ def April_start_detect():
 
 
 def April_tag_move():
-    global tag_lock_flag
-    tag_lock_flag = 1
     if distance > 170:
         if mid < 160 - tag_width / 3:
             left(500)
@@ -344,37 +348,6 @@ def April_tag_move():
         else:
             straight_if()
             # print("前进")
-    else:
-        if io_data[0] == 1 and io_data[1] == 0 and not escape_flag_right:
-            right(500)
-        elif io_data[0] == 0 and io_data[1] == 1 and not escape_flag_left:
-            left(500)
-        else:
-            straight_if()
-
-
-def April_tag_move_pid():
-    global tag_control_output, tag_control_output_final, mid, tag_width
-    tag_pid = PIDController(Kp=4, Ki=0, Kd=0.5, gkd=0.0, out_limit=1000.0)
-    tag_control_output = tag_pid.calculate(160, mid)  # kp 0~10 kd
-    if tag_control_output > 0:
-        tag_control_output_final = tag_control_output + dead_area
-    else:
-        tag_control_output_final = tag_control_output - dead_area
-    # print(control_output_final)
-    if distance > 170:
-        if mid >= 160 - tag_width and mid < 160 + tag_width:
-            straight(500)
-        else:
-            if tag_control_output_final > 1000:
-                up.CDS_SetSpeed(1, 1000)
-                up.CDS_SetSpeed(2, -1000)
-            elif tag_control_output_final < -1000:
-                up.CDS_SetSpeed(1, -1000)
-                up.CDS_SetSpeed(2, 1000)
-            else:
-                up.CDS_SetSpeed(1, int(tag_control_output_final))
-                up.CDS_SetSpeed(2, -int(tag_control_output_final))
     else:
         if io_data[0] == 1 and io_data[1] == 0 and not escape_flag_right:
             right(500)
@@ -404,12 +377,16 @@ def straight(speed):
 
 def straight_if():
     global buffer
-    if unify_all > down_value + 2500:
-        straight(1000)
-    elif unify_all > down_value + 1700:
-        straight(750)
+    if tag_lock_flag:
+        straight(500)
     else:
-        straight(650)
+        if unify_all > down_value + 2500:
+            straight(900)
+        elif unify_all > down_value + 1700:
+            straight(700)
+        else:
+            straight(600)
+
 
 
 def stop():
@@ -440,9 +417,10 @@ def right(speed):
 
 
 def get_io_data(up):
+    global io_data
     io_all_input = up.ADC_IO_GetAllInputLevel()
     io_array = '{:08b}'.format(io_all_input)
-    io_data = []
+    io_data.clear()
     for index, value in enumerate(io_array):
         io = int(value)
         io_data.insert(0, io)
@@ -559,19 +537,12 @@ def down_act():
 
 
 def up_act():
-    global tai_flag
-    up.CDS_SetAngle(3, 620, 700)  # 最低
-    up.CDS_SetAngle(4, 180, 700)
-    tai_flag = 1
-
     if io_data[3] == 0 and io_data[4] == 0:
         if tag_flag:
             if tag_safe:
                 April_tag_move()
             else:
                 April_tag_escape()
-        # elif blue_detected and not tag_lock_flag:
-        #     color_blue_move()
         else:
             if io_data[0] == 0 and io_data[1] == 0:
                 straight_if()
@@ -582,13 +553,19 @@ def up_act():
             else:
                 search_left_and_right()
     elif io_data[3] == 1 and io_data[4] == 0:
-        back_sleep()
-        right(1000)
-        time.sleep(0.2)
+        if tag_lock_flag:
+            right(500)
+        else:
+            back_sleep()
+            right(1000)
+            time.sleep(0.2)
     elif io_data[3] == 0 and io_data[4] == 1:
-        back_sleep()
-        left(1000)
-        time.sleep(0.2)
+        if tag_lock_flag:
+            left(500)
+        else:
+            back_sleep()
+            left(1000)
+            time.sleep(0.2)
     else:
         back_sleep()
 
@@ -598,43 +575,44 @@ def search_left_and_right():
     if check_right_time >= 3 and escape_flag_right == 0:
         while True:
             t += 1
-            adc_value = up.ADC_Get_All_Channle()
-            io_data = get_io_data(up)
             right(1000)
             if io_data[0] == 0 and io_data[1] == 0 or t >= 300:
                 t = 0
                 check_right_time = 0
                 break
-            # if blue_detected and 150 < cx < 170:
-            #     t = 0
-            #     check_right_time = 0
-            #     break
     elif check_left_time >= 3 and escape_flag_left == 0:
         while True:
             t += 1
-            adc_value = up.ADC_Get_All_Channle()
-            io_data = get_io_data(up)
             left(1000)
             if io_data[0] == 0 and io_data[1] == 0 or t >= 300:
                 t = 0
                 check_left_time = 0
                 break
-            # if blue_detected and 150 < cx < 170:
-            #     t = 0
-            #     check_right_time = 0
-            #     break
     else:
         straight_if()
+
+
+def get_adio_data():
+    global io_data
+    global adc_value
+    adc_value = up.ADC_Get_All_Channle()
+    io_all_input = up.ADC_IO_GetAllInputLevel()
+    io_array = '{:08b}'.format(io_all_input)
+    io_data.clear()
+    for index, value in enumerate(io_array):
+        io = (int)(value)
+        io_data.insert(0, io)
 
 
 def Search_inf():
     global adc_value, io_data, execution_time, end_time, start_time
     while True:
         start_time = time.time()
-        adc_value = up.ADC_Get_All_Channle()
+        # adc_value = up.ADC_Get_All_Channle()
+        get_adio_data()
         mix_all_gray()
         unify_all_gray()
-        io_data = get_io_data(up)
+        # io_data = get_io_data(up)
         check_time()
         # print(go_up_flag)
         # print(up_flag)
@@ -644,8 +622,10 @@ def Search_inf():
         # 添加sleep来实现定时
         time.sleep(0.01 - execution_time if 0.01 - execution_time > 0 else 0)
         # print(io_data)
-        # print(camera_safe)
+        # print(adc_value)
         # print(unify_all)
+        # print(adc_value[0]+adc_value[1]+adc_value[2]+adc_value[3]+adc_value[5])
+        # print(camera_safe)
         # end_time_1 = time.time()  # 记录循环结束的时间
         # execution_time_1 = end_time_1 - start_time  # 计算执行时间
         # print(execution_time_1)
@@ -697,10 +677,10 @@ if __name__ == "__main__":
     target3 = threading.Thread(target=Search_inf)
     target3.start()
     print("Ready——")
-    while True:
-        io_data = get_io_data(up)
-        if io_data[6] == 0 and io_data[7] == 0:
-            break
+    # while True:
+    #     io_data = get_io_data(up)
+    #     if io_data[6] == 0 and io_data[7] == 0:
+    #         break
     print("Go!!")
     while True:
         up.LCD_SetFont(up.FONT_12X20)
@@ -723,6 +703,7 @@ if __name__ == "__main__":
         # up.CDS_SetAngle(4, 600, 700)
         # 0、1 正前方红外   3、4斜向下   6、7左右
         # print(execution_time)
+        print(tag_lock_flag)
         if camera_safe:
             if down:
                 down_act()
