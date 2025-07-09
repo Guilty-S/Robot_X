@@ -11,7 +11,7 @@ import threading
 
 your_team_blue = 0  # 1为蓝队，0为黄队
 down_time_value = 40*500  # 灰度误差累加
-down_value = 2300  # 灰度台上台下临界值
+down_value = 1867  # 灰度台上台下临界值
 escape_value = 100  # 逃逸时间重置
 dead_area = 250  # 死区电压
 escape_time = 100  # 逃逸时间
@@ -152,10 +152,7 @@ class ApriltagDetect:
             tag_flag = 0
 
         # 新增：根据敌方块数量设置go_flag
-        if enemy_count == 2 and distance<120:
-            go_flag = 1
-        else:
-            go_flag=0
+        go_flag = 1 if enemy_count == 2 else 0
 
     def get_distance(self, H, t):
         ss = 0.5
@@ -280,17 +277,19 @@ def April_start_detect():
         # 显示结果
         # cv2.imshow('Camera', frame)
         # cv2.imshow('Mask', mask)
-        if tags:
-            # print(tags)
-            # print(index)
-            # print(f"中心位置{mid}")
-            # print(f"距离{distance}")
-            # print(f"宽度{tag_width}")
-            # if tag_safe == 0:
-            #     print("炸弹")
-            # else:
-                if tags[index].tag_id == di_fang_kuai and distance<140:
-                    tag_lock_flag=1
+        # if tags:
+        #     # print(tags)
+        #     # print(index)
+        #     print(f"中心位置{mid}")
+        #     print(f"距离{distance}")
+        #     print(f"宽度{tag_width}")
+        #     if tag_safe == 0:
+        #         print("炸弹")
+        #     else:
+        #         if tags[index].tag_id == 1:
+        #             print("敌方")
+        #         elif tags[index].tag_id == 0:
+        #             print("中立")
         # cv2.imshow("img", frame)
         if cv2.waitKey(1) & 0xff == ord('q'):
             break
@@ -428,7 +427,7 @@ def down_act():
     global tai_flag, up_flag, buffer, down
     if up_flag:
         stop()
-        time.sleep(0.05)
+        time.sleep(0.01)
         back(1000)
         time.sleep(1.5)
         back(300)
@@ -444,59 +443,49 @@ def down_act():
         if io_data[0] == 0 and io_data[1] == 0 and black_detect and io_data[6]==1 and io_data[7]==1:
             up_flag = 1
         else:
-            right(800)
+            right(700)
 
 
 def up_act():
-    if go_flag:
-        straight(700,700)
-        time.sleep(0.5)
-        stop()
-        time.sleep(0.01)
-        back(1000)
-        time.sleep(1)
-        right(700)
-        time.sleep(2)
-    else:
-        if io_data[3] == 0 and io_data[4] == 0:
-            if tag_flag:
-                if tag_safe:
-                    April_tag_move()
-                    # print(1)
-                else:
-                    April_tag_escape()
-                    # print(2)
+    if io_data[3] == 0 and io_data[4] == 0:
+        if tag_flag:
+            if tag_safe:
+                April_tag_move()
+                # print(1)
             else:
-                if io_data[0] == 0 and io_data[1] == 0:
-                    straight_if()
-                elif io_data[0] == 1 and io_data[1] == 0 and not escape_flag_right:
-                    right(600)
-                elif io_data[0] == 0 and io_data[1] == 1 and not escape_flag_left:
-                    left(600)
-                else:
-                    search_left_and_right()
-        elif io_data[3] == 1 and io_data[4] == 0:
-            back_sleep()
-            right(1000)
-            time.sleep(0.2)
-            # if tag_lock_flag:
-            #     right(500)
-            # else:
-            #     back_sleep()
-            #     right(1000)
-            #     time.sleep(0.2)
-        elif io_data[3] == 0 and io_data[4] == 1:
-            back_sleep()
-            left(1000)
-            time.sleep(0.2)
-            # if tag_lock_flag:
-            #     right(500)
-            # else:
-            #     back_sleep()
-            #     left(1000)
-            #     time.sleep(0.2)
+                April_tag_escape()
+                # print(2)
         else:
-            back_sleep()
+            if io_data[0] == 0 and io_data[1] == 0:
+                straight_if()
+            elif io_data[0] == 1 and io_data[1] == 0 and not escape_flag_right:
+                right(600)
+            elif io_data[0] == 0 and io_data[1] == 1 and not escape_flag_left:
+                left(600)
+            else:
+                search_left_and_right()
+    elif io_data[3] == 1 and io_data[4] == 0:
+        back_sleep()
+        right(1000)
+        time.sleep(0.1)
+        # if tag_lock_flag:
+        #     right(500)
+        # else:
+        #     back_sleep()
+        #     right(1000)
+        #     time.sleep(0.2)
+    elif io_data[3] == 0 and io_data[4] == 1:
+        back_sleep()
+        left(1000)
+        time.sleep(0.1)
+        # if tag_lock_flag:
+        #     right(500)
+        # else:
+        #     back_sleep()
+        #     left(1000)
+        #     time.sleep(0.2)
+    else:
+        back_sleep()
 
 
 def search_left_and_right():
@@ -559,7 +548,6 @@ if __name__ == "__main__":
         # print(adc_value)
         # straight(500,500)
         # time.sleep(3)
-        # right(500)
         if camera_safe:
             check_time()
             if down:
