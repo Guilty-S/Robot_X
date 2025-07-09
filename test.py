@@ -10,19 +10,21 @@ import signal
 import threading
 
 your_team_blue = 0  # 1为蓝队，0为黄队
-down_time_value = 100 * 300  # 灰度误差累加
-down_value = 2000  # 灰度台上台下临界值
+down_time_value = 40*500  # 灰度误差累加
+down_value = 2300  # 灰度台上台下临界值
 escape_value = 100  # 逃逸时间重置
 dead_area = 250  # 死区电压
 escape_time = 100  # 逃逸时间
-tag_lock_time_value = 200  # 持续锁定
+tag_lock_time_value = 5000  # 持续锁定
 
+go_flag=0
+black_detect=0
 io_data = []
 adc_value = []
 camera_reset = 0
 camera_reload = 1
 camera_time = 0
-camera_safe = 1
+camera_safe = 0
 tag_safe = 0
 tag_flag = 1
 blue_detected = 0
@@ -71,7 +73,7 @@ class ApriltagDetect:
         self.target_id = 0
         self.at_detector = apriltag.Detector(apriltag.DetectorOptions(families='tag36h11 tag25h9'))
 
-    def update_frame(self, frame):
+    def update_frame(self, frame):  # 敌方优先
         h0 = 0  # shi fou you 0 ma
         h1 = 0  # shi fou you 1 ma
         h2 = 0
@@ -84,19 +86,29 @@ class ApriltagDetect:
         mid0 = 0
         mid1 = 0
         mid2 = 0
-        global is_tag
+        global tag_flag, tag_safe, go_flag
         global index
-        global flag
         global mid
         global tag_width
         global tags
         global distance
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         tags = self.at_detector.detect(gray)
-        flag = 0
+        tag_flag = 0
         index = 0
+
+        # 新增：初始化敌方块计数器
+        enemy_count = 0
+
         if tags:
-            flag = 1  # 这是个标志位
+            tag_flag = 1  # 这是个标志位
+
+            # 新增：首先统计所有敌方块数量
+            for tag in tags:
+                if tag.tag_id == di_fang_kuai:
+                    enemy_count += 1
+
+            # 原有逻辑保持不变
             for i in range(1, len(tags)):
                 # 循环从第二个（results[1]）索引开始，进行冒泡排序。（因为前方index是从零开始的）所以排序没有遗漏
                 if tags[i].tag_id == di_fang_kuai or tags[i].tag_id == zhong_li_kuai:
@@ -116,24 +128,36 @@ class ApriltagDetect:
                                 index = i
                         elif tags[index].tag_id == zhong_li_kuai:
                             index = i
+                else:
+                    x_distance = int(self.get_distance(tags[index].homography, 4300))
+                    x_mid = tuple(tags[index].corners[0].astype(int))[0] / 2 + \
+                            tuple(tags[index].corners[2].astype(int))[0] / 2  # 计算tag的横向位置
+                    if x_distance < 120 and 140 < x_mid < 180:
+                        index = i
+                if tags[0].tag_id == zha_dan_kuai:
+                    x_distance = int(self.get_distance(tags[0].homography, 4300))
+                    x_mid = tuple(tags[0].corners[0].astype(int))[0] / 2 + \
+                            tuple(tags[0].corners[2].astype(int))[0] / 2  # 计算tag的横向位置
+                    if x_distance < 120 and 140 < x_mid < 180:
+                        index = 0
             if tags[index].tag_id == di_fang_kuai or tags[index].tag_id == zhong_li_kuai:  # 冒泡后如果最近的id是中立或敌方
-                is_tag = 1
+                tag_safe = 1
             else:  # 冒泡后如果的id是炸弹块(侧面证明了没有检测到敌方和中立)
-                is_tag = 0
+                tag_safe = 0
             distance = int(self.get_distance(tags[index].homography, 4300))
             mid = tuple(tags[index].corners[0].astype(int))[0] / 2 + \
                   tuple(tags[index].corners[2].astype(int))[0] / 2  # 计算tag的横向位置
             tag_width = abs(tuple(tags[index].corners[0].astype(int))[0] - tuple(tags[index].corners[2].astype(int))[0])
-            # print(taps1, tags[index].tag_id)
         else:
-            flag = 0
+            tag_flag = 0
+
+        # 新增：根据敌方块数量设置go_flag
+        if enemy_count == 2 and distance<120:
+            go_flag = 1
+        else:
+            go_flag=0
 
     def get_distance(self, H, t):
-        """
-        :param H: homography matrix
-        :param t: ???
-        :return: distance
-        """
         ss = 0.5
         src = np.array([[-ss, -ss, 0],
                         [ss, -ss, 0],
@@ -168,6 +192,7 @@ class ApriltagDetect:
 
 def April_start_detect():
     global frame, blue_detected, cx, cy, camera_safe, camera_reload, last_time, camera_time,camera_reset
+    global black_detect,tag_lock_flag
     cap = cv2.VideoCapture('/dev/video0')
     cap.set(3, 320)
     cap.set(4, 240)
@@ -198,23 +223,74 @@ def April_start_detect():
             camera_safe = 1
         frame = cv2.rotate(frame, cv2.ROTATE_180)
         ad.update_frame(frame)
+        if down:
+            # 转换为HSV颜色空间
+            hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+
+            # 定义黑色的HSV范围（黑色检测）
+            # 黑色通常具有较低的亮度值（V通道）
+            lower_black = np.array([0, 0, 0])
+            upper_black = np.array([179, 162, 168])  # V值上限设为50（较暗的区域）
+
+            # 创建掩膜
+            mask = cv2.inRange(hsv, lower_black, upper_black)
+
+            # 形态学操作（可选，用于降噪）
+            kernel = np.ones((5, 5), np.uint8)
+            mask = cv2.erode(mask, kernel, iterations=1)
+            mask = cv2.dilate(mask, kernel, iterations=1)
+
+            # ========== 新增：计算黑色区域占比 ==========
+            total_pixels = frame.shape[0] * frame.shape[1]
+            black_pixels = cv2.countNonZero(mask)
+            black_ratio = black_pixels / total_pixels
+            black_percentage = black_ratio * 100
+
+            # 检查黑色占比是否超过阈值
+            if black_percentage > 85:
+                # print(f"黑色区域占比: {black_percentage:.2f}% > 70% - 设置 black_detect=1")
+                black_detect = 1  # 设置全局变量为1
+            else:
+                black_detect = 0  # 设置全局变量为-1
+
+            # 在画面中显示黑色占比信息
+            cv2.putText(frame, f"Black: {black_percentage:.2f}%", (10, 30),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.85, (0, 0, 0), 2)
+            # ========================================
+
+            # 查找轮廓
+            contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            # 标记坐标的列表
+            coordinates = []
+            if contours:
+                # 找到最大轮廓
+                largest_contour = max(contours, key=cv2.contourArea)
+                # 计算轮廓中心
+                M = cv2.moments(largest_contour)
+                if M["m00"] != 0:
+                    cx = int(M["m10"] / M["m00"])
+                    cy = int(M["m01"] / M["m00"])
+                    blue_detected = 1  # 1表示检测到黑色物体
+                    coordinates.append((cx, cy))
+                    # 在画面中标记中心点
+                    cv2.circle(frame, (cx, cy), 7, (0, 0, 255), -1)
+                    cv2.putText(frame, f"({cx}, {cy})", (cx - 50, cy - 20),
+                                cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
         # time.sleep(0.01)
         # 显示结果
         # cv2.imshow('Camera', frame)
         # cv2.imshow('Mask', mask)
-        # if tags:
-        #     # print(tags)
-        #     # print(index)
-        #     print(f"中心位置{mid}")
-        #     print(f"距离{distance}")
-        #     print(f"宽度{tag_width}")
-        #     if tag_safe == 0:
-        #         print("炸弹")
-        #     else:
-        #         if tags[index].tag_id == 1:
-        #             print("敌方")
-        #         elif tags[index].tag_id == 0:
-        #             print("中立")
+        if tags:
+            # print(tags)
+            # print(index)
+            # print(f"中心位置{mid}")
+            # print(f"距离{distance}")
+            # print(f"宽度{tag_width}")
+            # if tag_safe == 0:
+            #     print("炸弹")
+            # else:
+                if tags[index].tag_id == di_fang_kuai and distance<140:
+                    tag_lock_flag=1
         # cv2.imshow("img", frame)
         if cv2.waitKey(1) & 0xff == ord('q'):
             break
@@ -234,9 +310,9 @@ def April_tag_move():
             straight_if()
     else:
         if io_data[0] == 1 and io_data[1] == 0 and not escape_flag_right:
-            right(500)
+            right(1000)
         elif io_data[0] == 0 and io_data[1] == 1 and not escape_flag_left:
-            left(500)
+            left(1000)
         else:
             straight_if()
 
@@ -264,10 +340,15 @@ def straight(speed_1, speed_2):
 
 def straight_if():
     global buffer
-    if unify_all > down_value + 2000:
-        straight(600, 600)
+    # if tag_lock_flag:
+    #     straight(500,500)
+    # else:
+    if unify_all > down_value + 3000:
+        straight(900, 900)
+    elif unify_all > down_value + 2200:
+        straight(700, 700)
     else:
-        straight(450, 450)
+        straight(600, 600)
 
 
 def stop():
@@ -347,56 +428,80 @@ def down_act():
     global tai_flag, up_flag, buffer, down
     if up_flag:
         stop()
-        time.sleep(0.1)
+        time.sleep(0.05)
         back(1000)
-        time.sleep(2)
+        time.sleep(1.5)
         back(300)
-        time.sleep(0.3)
+        time.sleep(0.01)
         stop()
-        time.sleep(0.4)
+        time.sleep(0.01)
         right(1000)
         time.sleep(0.4)
         up_flag = 0
         down = 0
         buffer = 20
     else:
-        if io_data[0] == 0 and io_data[1] == 0:
+        if io_data[0] == 0 and io_data[1] == 0 and black_detect and io_data[6]==1 and io_data[7]==1:
             up_flag = 1
         else:
-            right(700)
+            right(800)
 
 
 def up_act():
-    if io_data[3] == 0 and io_data[4] == 0:
-        if tag_flag:
-            if tag_safe:
-                April_tag_move()
-            else:
-                April_tag_escape()
-        else:
-            if io_data[0] == 0 and io_data[1] == 0:
-                straight_if()
-            elif io_data[0] == 1 and io_data[1] == 0 and not escape_flag_right:
-                right(500)
-            elif io_data[0] == 0 and io_data[1] == 1 and not escape_flag_left:
-                left(500)
-            else:
-                search_left_and_right()
-    elif io_data[3] == 1 and io_data[4] == 0:
-        back_sleep()
-        right(1000)
-        time.sleep(0.2)
-    elif io_data[3] == 0 and io_data[4] == 1:
-        back_sleep()
-        left(1000)
-        time.sleep(0.2)
+    if go_flag:
+        straight(700,700)
+        time.sleep(0.5)
+        stop()
+        time.sleep(0.01)
+        back(1000)
+        time.sleep(1)
+        right(700)
+        time.sleep(2)
     else:
-        back_sleep()
+        if io_data[3] == 0 and io_data[4] == 0:
+            if tag_flag:
+                if tag_safe:
+                    April_tag_move()
+                    # print(1)
+                else:
+                    April_tag_escape()
+                    # print(2)
+            else:
+                if io_data[0] == 0 and io_data[1] == 0:
+                    straight_if()
+                elif io_data[0] == 1 and io_data[1] == 0 and not escape_flag_right:
+                    right(600)
+                elif io_data[0] == 0 and io_data[1] == 1 and not escape_flag_left:
+                    left(600)
+                else:
+                    search_left_and_right()
+        elif io_data[3] == 1 and io_data[4] == 0:
+            back_sleep()
+            right(1000)
+            time.sleep(0.2)
+            # if tag_lock_flag:
+            #     right(500)
+            # else:
+            #     back_sleep()
+            #     right(1000)
+            #     time.sleep(0.2)
+        elif io_data[3] == 0 and io_data[4] == 1:
+            back_sleep()
+            left(1000)
+            time.sleep(0.2)
+            # if tag_lock_flag:
+            #     right(500)
+            # else:
+            #     back_sleep()
+            #     left(1000)
+            #     time.sleep(0.2)
+        else:
+            back_sleep()
 
 
 def search_left_and_right():
     global check_left_time, check_right_time, t, io_data, adc_value
-    if check_right_time >= 3 and escape_flag_right == 0:
+    if check_right_time >= 10 and escape_flag_right == 0:
         while True:
             t += 1
             io_data = get_io_data(up)
@@ -405,7 +510,7 @@ def search_left_and_right():
                 t = 0
                 check_right_time = 0
                 break
-    elif check_left_time >= 3 and escape_flag_left == 0:
+    elif check_left_time >= 10 and escape_flag_left == 0:
         while True:
             t += 1
             io_data = get_io_data(up)
@@ -451,7 +556,10 @@ if __name__ == "__main__":
         # 0、1 正前方红外   3、4斜向下   6、7左右
         # print(unify_all)
         # print(io_data)
-        back(1000)
+        # print(adc_value)
+        # straight(500,500)
+        # time.sleep(3)
+        # right(500)
         if camera_safe:
             check_time()
             if down:
