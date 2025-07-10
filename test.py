@@ -454,42 +454,6 @@ def down_act():
 
 
 def up_act():
-    if adc_left == 0 and adc_right == 0:
-        if io_data[0] == 0 and io_data[1] == 0:
-            straight(1000)
-        elif io_data[0] == 1 and io_data[1] == 0 and not escape_flag_right:
-            right(1000)
-        elif io_data[0] == 0 and io_data[1] == 1 and not escape_flag_left:
-            left(1000)
-        else:
-            search_left_and_right()
-    elif adc_left == 1 and adc_right == 0:
-        back_sleep()
-        right(1000)
-        while_sleep(20)
-        # if tag_lock_flag:
-        #     right(500)
-        # else:
-        #     back_sleep()
-        #     right(1000)
-        #     time.sleep(0.2)
-    elif adc_left == 0 and adc_right == 1:
-        back_sleep()
-        left(1000)
-        while_sleep(20)
-        # if tag_lock_flag:
-        #     right(500)
-        # else:
-        #     back_sleep()
-        #     left(1000)
-        #     time.sleep(0.2)
-    else:
-        back_sleep()
-        right(1000)
-        while_sleep(40)
-
-
-def tag_up_act():
     if io_data[3] == 0 and io_data[4] == 0:
         if tag_flag:
             if tag_safe:
@@ -565,14 +529,6 @@ def while_sleep(sleep_t):
             cnt = 0
             adc_value = up.ADC_Get_All_Channle()
             unify_all = adc_value[0] + adc_value[1] + adc_value[2] + adc_value[3] + adc_value[4]
-            if adc_value[6] < 1500:
-                adc_left = 0
-            else:
-                adc_left = 1
-            if adc_value[7] < 1500:
-                adc_right = 0
-            else:
-                adc_right = 1
             io_data = get_io_data(up)
             check_time()
             sleep_t -= 1
@@ -610,14 +566,6 @@ if __name__ == "__main__":
         # start_time = time.time()
         adc_value = up.ADC_Get_All_Channle()
         unify_all = adc_value[0] + adc_value[1] + adc_value[2] + adc_value[3] + adc_value[4]
-        if adc_value[6]<1500:
-            adc_left=0
-        else:
-            adc_left=1
-        if adc_value[7] < 1500:
-            adc_right = 0
-        else:
-            adc_right = 1
         io_data = get_io_data(up)
         up.LCD_SetFont(up.FONT_12X20)
         up.LCD_SetForeColor(up.COLOR_GBLUE)
@@ -638,10 +586,7 @@ if __name__ == "__main__":
             if down:
                 down_act()
             else:
-                if tag_safe:
-                    tag_up_act()
-                else:
-                    up_act()
+                up_act()
         else:
             stop()
         # end_time = time.time()  # 记录循环结束的时间
