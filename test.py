@@ -10,8 +10,8 @@ import signal
 import threading
 
 your_team_blue = 0  # 1为蓝队，0为黄队
-down_time_value = 250  # 灰度误差累加
-down_value = 0.5 * (2400 + 1700)  # 灰度台上台下临界值
+down_time_value = 200 * 700  # 灰度误差累加
+down_value = 2400  # 灰度台上台下临界值
 escape_value = 100  # 逃逸时间重置
 dead_area = 250  # 死区电压
 escape_time = 100  # 逃逸时间
@@ -319,7 +319,7 @@ def April_tag_move():
 
 def April_tag_escape():
     global escape_flag_right, escape_flag_left
-    if distance < 200:
+    if distance < 220:
         stop()
         time.sleep(0.05)
         back(800)
@@ -333,9 +333,9 @@ def signal_handler(handler_signal, handler_frame):
     exit(0)
 
 
-def straight(speed_1, speed_2):
-    up.CDS_SetSpeed(1, -speed_1)
-    up.CDS_SetSpeed(2, -speed_2)
+def straight(speed):
+    up.CDS_SetSpeed(1, -speed)
+    up.CDS_SetSpeed(2, -speed)
 
 
 def straight_if():
@@ -344,11 +344,11 @@ def straight_if():
     #     straight(500,500)
     # else:
     if unify_all > down_value + 3000:
-        straight(1000, 1000)
+        straight(1000)
     elif unify_all > down_value + 2200:
-        straight(700, 700)
+        straight(700)
     else:
-        straight(650, 650)
+        straight(650)
 
 
 def stop():
@@ -409,7 +409,7 @@ def check_time():
     else:
         check_right_time = 0
     if unify_all < down_value:
-        check_down_time += 1
+        check_down_time += down_value - unify_all
     else:
         check_down_time = 0
         down = 0
@@ -436,7 +436,7 @@ def down_act():
         stop()
         time.sleep(0.01)
         back(1000)
-        time.sleep(1.5)
+        time.sleep(1)
         back(300)
         time.sleep(0.01)
         stop()
@@ -454,6 +454,42 @@ def down_act():
 
 
 def up_act():
+    if adc_left == 0 and adc_right == 0:
+        if io_data[0] == 0 and io_data[1] == 0:
+            straight(1000)
+        elif io_data[0] == 1 and io_data[1] == 0 and not escape_flag_right:
+            right(1000)
+        elif io_data[0] == 0 and io_data[1] == 1 and not escape_flag_left:
+            left(1000)
+        else:
+            search_left_and_right()
+    elif adc_left == 1 and adc_right == 0:
+        back_sleep()
+        right(1000)
+        while_sleep(20)
+        # if tag_lock_flag:
+        #     right(500)
+        # else:
+        #     back_sleep()
+        #     right(1000)
+        #     time.sleep(0.2)
+    elif adc_left == 0 and adc_right == 1:
+        back_sleep()
+        left(1000)
+        while_sleep(20)
+        # if tag_lock_flag:
+        #     right(500)
+        # else:
+        #     back_sleep()
+        #     left(1000)
+        #     time.sleep(0.2)
+    else:
+        back_sleep()
+        right(1000)
+        while_sleep(40)
+
+
+def tag_up_act():
     if io_data[3] == 0 and io_data[4] == 0:
         if tag_flag:
             if tag_safe:
@@ -493,6 +529,8 @@ def up_act():
         #     time.sleep(0.2)
     else:
         back_sleep()
+        right(1000)
+        while_sleep(40)
 
 
 def search_left_and_right():
@@ -520,13 +558,21 @@ def search_left_and_right():
 
 
 def while_sleep(sleep_t):
-    global cnt, adc_value, io_data, unify_all
+    global cnt, adc_value, io_data, unify_all,adc_right,adc_left
     while sleep_t >= 0:
         cnt += 1
         if cnt % 5000 == 0:  # 0.01秒钟打印一次
             cnt = 0
             adc_value = up.ADC_Get_All_Channle()
             unify_all = adc_value[0] + adc_value[1] + adc_value[2] + adc_value[3] + adc_value[4]
+            if adc_value[6] < 1500:
+                adc_left = 0
+            else:
+                adc_left = 1
+            if adc_value[7] < 1500:
+                adc_right = 0
+            else:
+                adc_right = 1
             io_data = get_io_data(up)
             check_time()
             sleep_t -= 1
@@ -564,6 +610,14 @@ if __name__ == "__main__":
         # start_time = time.time()
         adc_value = up.ADC_Get_All_Channle()
         unify_all = adc_value[0] + adc_value[1] + adc_value[2] + adc_value[3] + adc_value[4]
+        if adc_value[6]<1500:
+            adc_left=0
+        else:
+            adc_left=1
+        if adc_value[7] < 1500:
+            adc_right = 0
+        else:
+            adc_right = 1
         io_data = get_io_data(up)
         up.LCD_SetFont(up.FONT_12X20)
         up.LCD_SetForeColor(up.COLOR_GBLUE)
@@ -584,7 +638,10 @@ if __name__ == "__main__":
             if down:
                 down_act()
             else:
-                up_act()
+                if tag_safe:
+                    tag_up_act()
+                else:
+                    up_act()
         else:
             stop()
         # end_time = time.time()  # 记录循环结束的时间
