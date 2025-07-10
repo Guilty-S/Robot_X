@@ -9,13 +9,13 @@ import numpy as np
 import signal
 import threading
 
-your_team_blue = 0  # 1为蓝队，0为黄队
+your_team_blue = 1  # 1为蓝队，0为黄队
 down_time_value = 200 * 400  # 灰度误差累加
-down_value = 2100  # 灰度台上台下临界值
+down_value = 0.5*(2000+1700)  # 灰度台上台下临界值
 escape_value = 100  # 逃逸时间重置
 dead_area = 250  # 死区电压
 escape_time = 100  # 逃逸时间
-tag_lock_time_value = 500  # 持续锁定
+tag_lock_time_value = 100  # 持续锁定
 
 execution_time = 0
 go_flag = 0
@@ -40,6 +40,7 @@ flag = 0
 cnt = 0
 cx = 0
 cy = 0
+c_time=0
 
 last_time = 0
 tai_flag = 0
@@ -342,16 +343,10 @@ def straight(speed):
 
 
 def straight_if():
-    global buffer
-    # if tag_lock_flag:
-    #     straight(500,500)
-    # else:
     if unify_all > down_value + 4000:
         straight(1000)
-    elif unify_all > down_value + 3200:
-        straight(800)
-    elif unify_all > down_value + 2200:
-        straight(600)
+    elif unify_all > down_value + 3000:
+        straight(700)
     else:
         straight(600)
 
@@ -367,18 +362,12 @@ def back(speed):
 
 
 def back_sleep():
-    # stop()
-    # time.sleep(0.01)
-    # back(400)
-    # time.sleep(0.05)
-    # back(600)
-    # time.sleep(0.05)
     stop()
-    while_sleep(1)
+    time.sleep(0.01)
     back(400)
-    while_sleep(5)
+    time.sleep(0.01)
     back(1000)
-    while_sleep(10)
+    time.sleep(0.2)
 
 
 def left(speed):
@@ -413,15 +402,18 @@ def check_time():
         check_right_time += 1
     else:
         check_right_time = 0
-    if unify_all < down_value:
-        check_down_time += down_value - unify_all
+    # if unify_all < down_value:
+    #     check_down_time += down_value - unify_all
+    # else:
+    #     check_down_time = 0
+    #     down = 0
+    if unify_all<down_value:
+        down=1
     else:
-        check_down_time = 0
-        down = 0
-    #
-    if not down:
-        if check_down_time >= down_time_value:
-            down = 1
+        down=0
+    # if not down:
+    #     if check_down_time >= down_time_value:
+    #         down = 1
     if escape_flag_left or escape_flag_right:
         escape_time -= 1
         if escape_time <= 0:
@@ -436,15 +428,15 @@ def check_time():
 
 
 def down_act():
-    global tai_flag, up_flag, buffer, down
+    global tai_flag, up_flag, buffer, down,c_time
     if up_flag:
         stop()
+        time.sleep(0.5)
+        back(400)
         time.sleep(1)
         back(1000)
-        time.sleep(1.3)
+        time.sleep(1)
         # while_sleep_up(130)
-        back(300)
-        time.sleep(0.1)
         stop()
         time.sleep(0.1)
         right(1000)
@@ -453,10 +445,16 @@ def down_act():
         down = 0
         buffer = 20
     else:
-        if io_data[0] == 0 and io_data[1] == 0 and io_data[6]==1 and io_data[7]==1:
+        if io_data[0] == 0 and io_data[1] == 0:
             up_flag = 1
         else:
-            right(700)
+            c_time+=1
+            if c_time<300:
+                right(800)
+            else:
+                left(800)
+            if c_time==1200:
+                c_time=0
 
 
 def up_act():
@@ -464,54 +462,40 @@ def up_act():
         if tag_flag:
             if tag_safe:
                 April_tag_move()
-                # print(1)
             else:
                 April_tag_escape()
-                # print(2)
         else:
             if io_data[0] == 0 and io_data[1] == 0:
                 straight_if()
             elif io_data[0] == 1 and io_data[1] == 0 and not escape_flag_right:
-                right(700)
+                 right(700)
             elif io_data[0] == 0 and io_data[1] == 1 and not escape_flag_left:
-                left(700)
+                 left(700)
             else:
                 search_left_and_right()
     elif io_data[3] == 1 and io_data[4] == 0:
         back_sleep()
         right(1000)
-        if tag_lock_flag:
-            while_sleep(40)
+        if tag_safe and tag_flag:
+            time.sleep(0.2)
         else:
-            while_sleep(20)
-        # if tag_lock_flag:
-        #     right(500)
-        # else:
-        #     back_sleep()
-        #     right(1000)
-        #     time.sleep(0.2)
+            time.sleep(0.3)
     elif io_data[3] == 0 and io_data[4] == 1:
         back_sleep()
         left(1000)
-        if tag_lock_flag:
-            while_sleep(40)
+        if tag_safe and tag_flag:
+            time.sleep(0.2)
         else:
-            while_sleep(20)
-        # if tag_lock_flag:
-        #     right(500)
-        # else:
-        #     back_sleep()
-        #     left(1000)
-        #     time.sleep(0.2)
+            time.sleep(0.3)
     else:
         back_sleep()
         right(1000)
-        while_sleep(40)
+
 
 
 def search_left_and_right():
     global check_left_time, check_right_time, t, io_data, adc_value
-    if check_right_time >= 2:
+    if check_right_time >= 4:
         while True:
             t += 1
             io_data = get_io_data(up)
@@ -520,7 +504,7 @@ def search_left_and_right():
                 t = 0
                 check_right_time = 0
                 break
-    elif check_left_time >= 2:
+    elif check_left_time >= 4:
         while True:
             t += 1
             io_data = get_io_data(up)
@@ -532,37 +516,6 @@ def search_left_and_right():
     else:
         straight_if()
 
-
-def while_sleep(sleep_t):
-    global cnt, adc_value, io_data, unify_all,adc_right,adc_left
-    while sleep_t >= 0:
-        cnt += 1
-        if cnt % 5000 == 0:  # 0.01秒钟打印一次
-            cnt = 0
-            adc_value = up.ADC_Get_All_Channle()
-            unify_all = adc_value[0] + adc_value[1] + adc_value[2] + adc_value[3] + adc_value[4]
-            io_data = get_io_data(up)
-            check_time()
-            sleep_t -= 1
-        # if io_data[0] == 0 or io_data[1] == 0 or io_data[6] == 0 or io_data[7] == 0:
-        #     break
-
-
-def while_sleep_up(sleep_t):
-    global cnt, adc_value, io_data, unify_all,adc_right,adc_left
-    while sleep_t >= 0:
-        cnt += 1
-        if cnt % 5000 == 0:  # 0.01秒钟打印一次
-            cnt = 0
-            adc_value = up.ADC_Get_All_Channle()
-            unify_all = adc_value[0] + adc_value[1] + adc_value[2] + adc_value[3] + adc_value[4]
-            io_data = get_io_data(up)
-            check_time()
-            sleep_t -= 1
-        # if io_data[0] == 0 or io_data[1] == 0 or io_data[6] == 0 or io_data[7] == 0:
-        #     break
-        if unify_all>down_value:
-            break
 
 def Print():
     while True:
@@ -585,10 +538,10 @@ if __name__ == "__main__":
     # target3 = threading.Thread(target=Print)
     # target3.start()
     print("Ready——")
-    # while True:
-    #     io_data = get_io_data(up)
-    #     if io_data[6] == 0 and io_data[7] == 0:
-    #         break
+    while True:
+        io_data = get_io_data(up)
+        if io_data[6] == 0 and io_data[7] == 0:
+            break
     print("Go!!")
     while True:
         # start_time = time.time()
@@ -603,13 +556,11 @@ if __name__ == "__main__":
         up.LCD_PutString(0, 0, f'{unify_all:.2f}')
         up.LCD_Refresh()
         # 0、1 正前方红外   3、4斜向下   6、7左右
-        # print(unify_all)
         # print(io_data)
         # print(adc_value)
         # straight(500,500)
         # time.sleep(3)
         # print(unify_all)
-        # back(1000)
         if camera_safe:
             check_time()
             if down:
