@@ -10,15 +10,16 @@ import signal
 import threading
 
 your_team_blue = 0  # 1为蓝队，0为黄队
-down_time_value = 40*500  # 灰度误差累加
-down_value = 1867  # 灰度台上台下临界值
+down_time_value = 250  # 灰度误差累加
+down_value = 0.5 * (2400 + 1700)  # 灰度台上台下临界值
 escape_value = 100  # 逃逸时间重置
 dead_area = 250  # 死区电压
 escape_time = 100  # 逃逸时间
 tag_lock_time_value = 5000  # 持续锁定
 
-go_flag=0
-black_detect=0
+execution_time = 0
+go_flag = 0
+black_detect = 0
 io_data = []
 adc_value = []
 camera_reset = 0
@@ -188,8 +189,8 @@ class ApriltagDetect:
 
 
 def April_start_detect():
-    global frame, blue_detected, cx, cy, camera_safe, camera_reload, last_time, camera_time,camera_reset
-    global black_detect,tag_lock_flag
+    global frame, blue_detected, cx, cy, camera_safe, camera_reload, last_time, camera_time, camera_reset
+    global black_detect, tag_lock_flag
     cap = cv2.VideoCapture('/dev/video0')
     cap.set(3, 320)
     cap.set(4, 240)
@@ -309,16 +310,16 @@ def April_tag_move():
             straight_if()
     else:
         if io_data[0] == 1 and io_data[1] == 0 and not escape_flag_right:
-            right(1000)
+            right(500)
         elif io_data[0] == 0 and io_data[1] == 1 and not escape_flag_left:
-            left(1000)
+            left(500)
         else:
             straight_if()
 
 
 def April_tag_escape():
     global escape_flag_right, escape_flag_left
-    if distance < 150:
+    if distance < 200:
         stop()
         time.sleep(0.05)
         back(800)
@@ -343,11 +344,11 @@ def straight_if():
     #     straight(500,500)
     # else:
     if unify_all > down_value + 3000:
-        straight(900, 900)
+        straight(1000, 1000)
     elif unify_all > down_value + 2200:
         straight(700, 700)
     else:
-        straight(600, 600)
+        straight(650, 650)
 
 
 def stop():
@@ -361,12 +362,18 @@ def back(speed):
 
 
 def back_sleep():
+    # stop()
+    # time.sleep(0.01)
+    # back(400)
+    # time.sleep(0.05)
+    # back(600)
+    # time.sleep(0.05)
     stop()
-    time.sleep(0.01)
+    while_sleep(1)
     back(400)
-    time.sleep(0.05)
+    while_sleep(5)
     back(600)
-    time.sleep(0.05)
+    while_sleep(5)
 
 
 def left(speed):
@@ -402,7 +409,7 @@ def check_time():
     else:
         check_right_time = 0
     if unify_all < down_value:
-        check_down_time += down_value - unify_all
+        check_down_time += 1
     else:
         check_down_time = 0
         down = 0
@@ -440,7 +447,7 @@ def down_act():
         down = 0
         buffer = 20
     else:
-        if io_data[0] == 0 and io_data[1] == 0 and black_detect and io_data[6]==1 and io_data[7]==1:
+        if io_data[0] == 0 and io_data[1] == 0 and black_detect and io_data[6] == 1 and io_data[7] == 1:
             up_flag = 1
         else:
             right(700)
@@ -467,7 +474,7 @@ def up_act():
     elif io_data[3] == 1 and io_data[4] == 0:
         back_sleep()
         right(1000)
-        time.sleep(0.1)
+        while_sleep(20)
         # if tag_lock_flag:
         #     right(500)
         # else:
@@ -477,7 +484,7 @@ def up_act():
     elif io_data[3] == 0 and io_data[4] == 1:
         back_sleep()
         left(1000)
-        time.sleep(0.1)
+        while_sleep(20)
         # if tag_lock_flag:
         #     right(500)
         # else:
@@ -490,26 +497,46 @@ def up_act():
 
 def search_left_and_right():
     global check_left_time, check_right_time, t, io_data, adc_value
-    if check_right_time >= 10 and escape_flag_right == 0:
+    if check_right_time >= 3 and escape_flag_right == 0:
         while True:
             t += 1
             io_data = get_io_data(up)
-            right(600)
-            if io_data[0] == 0 and io_data[1] == 0 or t >= 300:
+            right(700)
+            if io_data[0] == 0 and io_data[1] == 0 or t >= 200:
                 t = 0
                 check_right_time = 0
                 break
-    elif check_left_time >= 10 and escape_flag_left == 0:
+    elif check_left_time >= 3 and escape_flag_left == 0:
         while True:
             t += 1
             io_data = get_io_data(up)
-            left(600)
-            if io_data[0] == 0 and io_data[1] == 0 or t >= 300:
+            left(700)
+            if io_data[0] == 0 and io_data[1] == 0 or t >= 200:
                 t = 0
                 check_left_time = 0
                 break
     else:
         straight_if()
+
+
+def while_sleep(sleep_t):
+    global cnt, adc_value, io_data, unify_all
+    while sleep_t >= 0:
+        cnt += 1
+        if cnt % 5000 == 0:  # 0.01秒钟打印一次
+            cnt = 0
+            adc_value = up.ADC_Get_All_Channle()
+            unify_all = adc_value[0] + adc_value[1] + adc_value[2] + adc_value[3] + adc_value[4]
+            io_data = get_io_data(up)
+            check_time()
+            sleep_t -= 1
+        # if io_data[0] == 0 or io_data[1] == 0 or io_data[6] == 0 or io_data[7] == 0:
+        #     break
+
+
+def Print():
+    while True:
+        print(execution_time)
 
 
 if __name__ == "__main__":
@@ -525,6 +552,8 @@ if __name__ == "__main__":
     signal.signal(signal.SIGINT, signal_handler)
     target2 = threading.Thread(target=April_start_detect)
     target2.start()
+    # target3 = threading.Thread(target=Print)
+    # target3.start()
     print("Ready——")
     # while True:
     #     io_data = get_io_data(up)
@@ -532,8 +561,9 @@ if __name__ == "__main__":
     #         break
     print("Go!!")
     while True:
+        # start_time = time.time()
         adc_value = up.ADC_Get_All_Channle()
-        unify_all=adc_value[0]+adc_value[1]+adc_value[2]+adc_value[3]+adc_value[4]
+        unify_all = adc_value[0] + adc_value[1] + adc_value[2] + adc_value[3] + adc_value[4]
         io_data = get_io_data(up)
         up.LCD_SetFont(up.FONT_12X20)
         up.LCD_SetForeColor(up.COLOR_GBLUE)
@@ -548,6 +578,7 @@ if __name__ == "__main__":
         # print(adc_value)
         # straight(500,500)
         # time.sleep(3)
+        # print(unify_all)
         if camera_safe:
             check_time()
             if down:
@@ -556,3 +587,5 @@ if __name__ == "__main__":
                 up_act()
         else:
             stop()
+        # end_time = time.time()  # 记录循环结束的时间
+        # execution_time = end_time - start_time  # 计算执行时间
