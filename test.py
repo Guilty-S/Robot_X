@@ -9,9 +9,9 @@ import numpy as np
 import signal
 import threading
 
-your_team_blue = 1  # 1为蓝队，0为黄队
+your_team_blue = 0  # 1为蓝队，0为黄队
 down_time_value = 200 * 400  # 灰度误差累加
-down_value = 0.5*(2000+1700)  # 灰度台上台下临界值
+down_value = 0.5*(2000+1750)  # 灰度台上台下临界值
 escape_value = 100  # 逃逸时间重置
 dead_area = 250  # 死区电压
 escape_time = 100  # 逃逸时间
@@ -282,7 +282,7 @@ def April_start_detect():
         # 显示结果
         # cv2.imshow('Camera', frame)
         # cv2.imshow('Mask', mask)
-        # if tags:
+        if tags:
         #     # print(tags)
         #     # print(index)
         #     print(f"中心位置{mid}")
@@ -291,7 +291,9 @@ def April_start_detect():
         #     if tag_safe == 0:
         #         print("炸弹")
         #     else:
-        #         if tags[index].tag_id == 1:
+            if tag_safe:
+                tag_lock_flag = 1
+
         #             print("敌方")
         #         elif tags[index].tag_id == 0:
         #             print("中立")
@@ -304,18 +306,17 @@ def April_start_detect():
 
 def April_tag_move():
     global tag_lock_flag
-    tag_lock_flag = 1
     if distance > 170:
         if mid < 160 - tag_width / 3:
-            left(500)
+            left(600)
         elif mid > 160 + tag_width / 3:
-            right(500)
+            right(600)
         else:
             straight_if()
     else:
-        if io_data[0] == 1 and io_data[1] == 0 and not escape_flag_right:
+        if io_data[0] == 1 and io_data[1] == 0:
             right(500)
-        elif io_data[0] == 0 and io_data[1] == 1 and not escape_flag_left:
+        elif io_data[0] == 0 and io_data[1] == 1:
             left(500)
         else:
             straight_if()
@@ -324,10 +325,7 @@ def April_tag_move():
 def April_tag_escape():
     global escape_flag_right, escape_flag_left
     if distance < 220:
-        stop()
-        time.sleep(0.05)
-        back(800)
-        time.sleep(0.05)
+        back_sleep()
         right(1000)
         time.sleep(0.5)
 
@@ -348,7 +346,7 @@ def straight_if():
     elif unify_all > down_value + 3000:
         straight(700)
     else:
-        straight(600)
+        straight(500)
 
 
 def stop():
@@ -362,12 +360,30 @@ def back(speed):
 
 
 def back_sleep():
+    straight(400)
+    time.sleep(0.01)
     stop()
     time.sleep(0.01)
     back(400)
     time.sleep(0.01)
+    back(700)
+    time.sleep(0.01)
     back(1000)
-    time.sleep(0.2)
+    time.sleep(0.15)
+
+
+
+def back_sleep_low():
+    straight(400)
+    time.sleep(0.01)
+    stop()
+    time.sleep(0.01)
+    back(400)
+    time.sleep(0.01)
+    back(700)
+    time.sleep(0.01)
+    back(1000)
+    time.sleep(0.1)
 
 
 def left(speed):
@@ -431,11 +447,15 @@ def down_act():
     global tai_flag, up_flag, buffer, down,c_time
     if up_flag:
         stop()
-        time.sleep(0.5)
-        back(400)
+        time.sleep(0.2)
+        back(500)
         time.sleep(1)
+        stop()
+        time.sleep(0.6)
         back(1000)
         time.sleep(1)
+        back(400)
+        time.sleep(0.1)
         # while_sleep_up(130)
         stop()
         time.sleep(0.1)
@@ -474,18 +494,26 @@ def up_act():
             else:
                 search_left_and_right()
     elif io_data[3] == 1 and io_data[4] == 0:
-        back_sleep()
-        right(1000)
-        if tag_safe and tag_flag:
+        if tag_lock_flag:
+            back_sleep_low()
+            right(1000)
+            print(1)
             time.sleep(0.2)
         else:
+            back_sleep()
+            right(1000)
+            print(2)
             time.sleep(0.3)
     elif io_data[3] == 0 and io_data[4] == 1:
-        back_sleep()
-        left(1000)
-        if tag_safe and tag_flag:
+        if tag_lock_flag:
+            back_sleep_low()
+            left(1000)
+            print(1)
             time.sleep(0.2)
         else:
+            back_sleep()
+            left(1000)
+            print(2)
             time.sleep(0.3)
     else:
         back_sleep()
@@ -519,7 +547,9 @@ def search_left_and_right():
 
 def Print():
     while True:
-        print(execution_time)
+        # print(execution_time)
+        print(tag_lock_flag)
+
 
 
 if __name__ == "__main__":
@@ -542,7 +572,7 @@ if __name__ == "__main__":
         io_data = get_io_data(up)
         if io_data[6] == 0 and io_data[7] == 0:
             break
-    print("Go!!")
+    # print("Go!!")
     while True:
         # start_time = time.time()
         adc_value = up.ADC_Get_All_Channle()
