@@ -10,10 +10,7 @@ import signal
 import threading
 
 your_team_blue = 0  # 1为蓝队，0为黄队
-down_value = 1800  # 灰度台上台下临界值
-escape_value = 100  # 逃逸时间重置
-dead_area = 250  # 死区电压
-escape_time = 100  # 逃逸时间
+down_value = 1700  # 灰度台上台下临界值
 tag_lock_time_value = 100  # 持续锁定
 
 execution_time = 0
@@ -224,59 +221,6 @@ def April_start_detect():
             camera_safe = 1
         frame = cv2.rotate(frame, cv2.ROTATE_180)
         ad.update_frame(frame)
-        if down:
-            # 转换为HSV颜色空间
-            hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
-
-            # 定义黑色的HSV范围（黑色检测）
-            # 黑色通常具有较低的亮度值（V通道）
-            lower_black = np.array([0, 0, 0])
-            upper_black = np.array([179, 162, 168])  # V值上限设为50（较暗的区域）
-
-            # 创建掩膜
-            mask = cv2.inRange(hsv, lower_black, upper_black)
-
-            # 形态学操作（可选，用于降噪）
-            kernel = np.ones((5, 5), np.uint8)
-            mask = cv2.erode(mask, kernel, iterations=1)
-            mask = cv2.dilate(mask, kernel, iterations=1)
-
-            # ========== 新增：计算黑色区域占比 ==========
-            total_pixels = frame.shape[0] * frame.shape[1]
-            black_pixels = cv2.countNonZero(mask)
-            black_ratio = black_pixels / total_pixels
-            black_percentage = black_ratio * 100
-
-            # 检查黑色占比是否超过阈值
-            if black_percentage > 85:
-                # print(f"黑色区域占比: {black_percentage:.2f}% > 70% - 设置 black_detect=1")
-                black_detect = 1  # 设置全局变量为1
-            else:
-                black_detect = 0  # 设置全局变量为-1
-
-            # 在画面中显示黑色占比信息
-            cv2.putText(frame, f"Black: {black_percentage:.2f}%", (10, 30),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.85, (0, 0, 0), 2)
-            # ========================================
-
-            # 查找轮廓
-            contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-            # 标记坐标的列表
-            coordinates = []
-            if contours:
-                # 找到最大轮廓
-                largest_contour = max(contours, key=cv2.contourArea)
-                # 计算轮廓中心
-                M = cv2.moments(largest_contour)
-                if M["m00"] != 0:
-                    cx = int(M["m10"] / M["m00"])
-                    cy = int(M["m01"] / M["m00"])
-                    blue_detected = 1  # 1表示检测到黑色物体
-                    coordinates.append((cx, cy))
-                    # 在画面中标记中心点
-                    cv2.circle(frame, (cx, cy), 7, (0, 0, 255), -1)
-                    cv2.putText(frame, f"({cx}, {cy})", (cx - 50, cy - 20),
-                                cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
         # time.sleep(0.01)
         # 显示结果
         # cv2.imshow('Camera', frame)
@@ -292,7 +236,6 @@ def April_start_detect():
             #     else:
             if tag_safe:
                 tag_lock_flag = 1
-
         #             print("敌方")
         #         elif tags[index].tag_id == 0:
         #             print("中立")
