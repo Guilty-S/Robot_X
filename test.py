@@ -537,13 +537,13 @@ if __name__ == "__main__":
         # time.sleep(3)
         # print(unify_all)
         # print(down)
-        if camera_safe:
-            check_time()
-            if down:
-                down_act()
-            else:
-                up_act()
-        else:
-            stop()
+        # if camera_safe:
+        #     check_time()
+        #     if down:
+        #         down_act()
+        #     else:
+        #         up_act()
+        # else:
+        #     stop()
         # end_time = time.time()  # 记录循环结束的时间
         # execution_time = end_time - start_time  # 计算执行时间
