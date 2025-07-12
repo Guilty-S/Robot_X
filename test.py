@@ -10,7 +10,7 @@ import signal
 import threading
 
 your_team_blue = 0  # 1为蓝队，0为黄队
-down_value = 450  # 灰度台上台下临界值
+down_value = 2200  # 灰度台上台下临界值
 tag_lock_time_value = 100  # 持续锁定
 down_time_value = 20
 
