@@ -10,7 +10,7 @@ import signal
 import threading
 
 your_team_blue = 0  # 1为蓝队，0为黄队
-down_value = 1700  # 灰度台上台下临界值
+down_value = 450  # 灰度台上台下临界值
 tag_lock_time_value = 100  # 持续锁定
 down_time_value = 20
 
@@ -286,9 +286,9 @@ def straight(speed):
 def straight_if():
     if unify_all > down_value + 4000:
         straight(1000)
-    elif unify_all > down_value + 4000:
+    elif unify_all > down_value + 2000:
         straight(800)
-    elif unify_all > down_value + 3500:
+    elif unify_all > down_value + 1500:
         straight(700)
     else:
         straight(600)
@@ -354,15 +354,19 @@ def check_time():
         check_right_time += 1
     else:
         check_right_time = 0
-    if unify_all < down_value:
-        check_down_time += 1
+    if adc_left == 1 and adc_right == 1:
+        down = 1
     else:
-        check_down_time = 0
         down = 0
-    #
-    if not down:
-        if check_down_time >= down_time_value:
-            down = 1
+    # if adc_value[0] < down_value:
+    #     check_down_time += 1
+    # else:
+    #     check_down_time = 0
+    #     down = 0
+    # #
+    # if not down:
+    #     if check_down_time >= down_time_value:
+    #         down = 1
     # if unify_all < down_value:
     #     down = 1
     # else:
@@ -379,12 +383,12 @@ def down_act():
     if up_flag:
         stop()
         time.sleep(0.2)
-        back(500)
+        back(600)
         time.sleep(1)
         stop()
-        time.sleep(0.6)
+        time.sleep(0.4)
         back(1000)
-        time.sleep(1)
+        time.sleep(1.2)
         back(400)
         time.sleep(0.1)
         # while_sleep_up(130)
@@ -500,23 +504,31 @@ if __name__ == "__main__":
     # target3 = threading.Thread(target=Print)
     # target3.start()
     print("Ready——")
-    while True:
-        io_data = get_io_data(up)
-        if io_data[6] == 0 and io_data[7] == 0:
-            down_act()
-            break
-    # print("Go!!")
+    # while True:
+    #     io_data = get_io_data(up)
+    #     if io_data[6] == 0 and io_data[7] == 0:
+    #         down_act()
+    #         break
+    print("Go!!")
     while True:
         # start_time = time.time()
         adc_value = up.ADC_Get_All_Channle()
         unify_all = adc_value[0] + adc_value[1] + adc_value[2] + adc_value[3] + adc_value[4]
         io_data = get_io_data(up)
+        if adc_value[6] < 2000:
+            adc_left = 0
+        else:
+            adc_left = 1
+        if adc_value[7] < 2000:
+            adc_right = 0
+        else:
+            adc_right = 1
         up.LCD_SetFont(up.FONT_12X20)
         up.LCD_SetForeColor(up.COLOR_GBLUE)
         # up.LCD_PutString(0, 0, 'Go North All')
         up.LCD_SetFont(up.FONT_12X20)
         up.LCD_SetForeColor(up.COLOR_YELLOW)
-        up.LCD_PutString(0, 0, f'{unify_all:.2f}')
+        up.LCD_PutString(0, 0, f'{adc_value[0]}')
         up.LCD_Refresh()
         # 0、1 正前方红外   3、4斜向下   6、7左右
         # print(io_data)
