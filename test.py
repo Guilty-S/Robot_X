@@ -12,6 +12,7 @@ import threading
 your_team_blue = 0  # 1为蓝队，0为黄队
 down_value = 1700  # 灰度台上台下临界值
 tag_lock_time_value = 100  # 持续锁定
+down_time_value = 20
 
 execution_time = 0
 go_flag = 0
@@ -354,9 +355,18 @@ def check_time():
     else:
         check_right_time = 0
     if unify_all < down_value:
-        down = 1
+        check_down_time += 1
     else:
+        check_down_time = 0
         down = 0
+    #
+    if not down:
+        if check_down_time >= down_time_value:
+            down = 1
+    # if unify_all < down_value:
+    #     down = 1
+    # else:
+    #     down = 0
     if tag_lock_flag:
         tag_lock_time -= 1
         if tag_lock_time <= 0:
@@ -490,10 +500,11 @@ if __name__ == "__main__":
     # target3 = threading.Thread(target=Print)
     # target3.start()
     print("Ready——")
-    # while True:
-    #     io_data = get_io_data(up)
-    #     if io_data[6] == 0 and io_data[7] == 0:
-    #         break
+    while True:
+        io_data = get_io_data(up)
+        if io_data[6] == 0 and io_data[7] == 0:
+            down_act()
+            break
     # print("Go!!")
     while True:
         # start_time = time.time()
