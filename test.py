@@ -1,5 +1,3 @@
-from re import search, escape
-
 import cv2
 import subprocess
 import uptech
@@ -10,10 +8,11 @@ import signal
 import threading
 
 your_team_blue = 0  # 1为蓝队，0为黄队
-down_value = 2200  # 灰度台上台下临界值
+down_value = 2000  # 灰度台上台下临界值
 tag_lock_time_value = 100  # 持续锁定
-down_time_value = 20
+up_time_value = 20
 
+check_up_time=0
 execution_time = 0
 go_flag = 0
 black_detect = 0
@@ -65,6 +64,54 @@ else:
     di_fang_kuai = 1  # 敌方块
     zhong_li_kuai = 0  # 中立块
     zha_dan_kuai = 2  # 炸弹块
+
+
+class PIDController:
+    def __init__(self, Kp, Ki, Kd, gkd, out_limit):
+        """
+        初始化PID控制器。
+
+        参数:
+        Kp -- 比例增益
+        Ki -- 积分增益
+        Kd -- 微分增益
+        gkd -- 微分滤波系数
+        out_limit -- 输出限制
+        """
+        self.Kp = Kp
+        self.Ki = Ki
+        self.Kd = Kd
+        self.gkd = gkd
+        self.out_limit = out_limit
+
+        self.err = 0.0
+        self.err_last = 0.0
+        self.output = 0.0
+        self.setpoint = 0.0
+        self.current_value = 0.0
+
+    def calculate(self, target, current):
+        """
+        计算PID输出。
+
+        参数:
+        target -- 目标值
+        current -- 当前值
+
+        返回:
+        计算得到的PID输出
+        """
+        self.err = target - current
+        self.output = self.Kp * self.err + self.Kd * (self.err - self.err_last)
+        self.err_last = self.err
+
+        # 输出限幅
+        if self.output > self.out_limit:
+            self.output = self.out_limit
+        elif self.output < -self.out_limit:
+            self.output = -self.out_limit
+
+        return self.output
 
 
 class ApriltagDetect:
@@ -215,7 +262,7 @@ def April_start_detect():
             time.sleep(0.4)
             subprocess.check_call("sudo modprobe uvcvideo", shell=True)
             time.sleep(0.2)
-            cap = cv2.VideoCapture('/dev/video0')
+            cap = cv2.VideoCapture('/dev/vid')
             camera_reset = 1
             continue
         else:
@@ -224,23 +271,26 @@ def April_start_detect():
         ad.update_frame(frame)
         # time.sleep(0.01)
         # 显示结果
-        # cv2.imshow('Camera', frame)
+        cv2.imshow('Camera', frame)
         # cv2.imshow('Mask', mask)
         if tags:
-            #     # print(tags)
-            #     # print(index)
-            #     print(f"中心位置{mid}")
-            #     print(f"距离{distance}")
-            #     print(f"宽度{tag_width}")
-            #     if tag_safe == 0:
-            #         print("炸弹")
-            #     else:
             if tag_safe:
                 tag_lock_flag = 1
-        #             print("敌方")
-        #         elif tags[index].tag_id == 0:
-        #             print("中立")
-        # cv2.imshow("img", frame)
+
+        if tags:
+            # print(tags)
+            # print(index)
+            print(f"中心位置{mid}")
+            print(f"距离{distance}")
+            print(f"宽度{tag_width}")
+            if tag_safe == 0:
+                print("炸弹")
+            else:
+                if tags[index].tag_id == 1:
+                    print("敌方")
+                elif tags[index].tag_id == 0:
+                    print("中立")
+
         if cv2.waitKey(1) & 0xff == ord('q'):
             break
     cap.release()
@@ -265,6 +315,33 @@ def April_tag_move():
             straight_if()
 
 
+def April_tag_move_pid():
+    global tag_control_output, tag_control_output_final, mid, tag_width
+    tag_pid = PIDController(Kp=-10, Ki=0, Kd=-1, gkd=0.0, out_limit=1000.0)
+    tag_control_output = tag_pid.calculate(160, mid)
+
+    # 计算基础速度并添加PID修正
+    base_speed = 500
+    left_speed = base_speed + int(tag_control_output)
+    right_speed = base_speed - int(tag_control_output)
+
+    # 速度限幅处理（假设有效范围0~800）
+    MAX_SPEED = 800
+    MIN_SPEED = -800
+    left_speed = max(MIN_SPEED, min(MAX_SPEED, left_speed))
+    right_speed = max(MIN_SPEED, min(MAX_SPEED, right_speed))
+    straight_pid(left_speed, right_speed)  # 使用限幅后的速度
+    # if distance > 170:
+    #     straight_pid(left_speed, right_speed)  # 使用限幅后的速度
+    # else:
+    #     if io_data[0] == 1 and io_data[1] == 0 and not escape_flag_right:
+    #         right(500)
+    #     elif io_data[0] == 0 and io_data[1] == 1 and not escape_flag_left:
+    #         left(500)
+    #     else:
+    #         straight_if()
+
+
 def April_tag_escape():
     global escape_flag_right, escape_flag_left
     if distance < 220:
@@ -283,15 +360,21 @@ def straight(speed):
     up.CDS_SetSpeed(2, -speed)
 
 
+def straight_pid(speed_left, speed_right):
+    up.CDS_SetSpeed(1, -speed_left)
+    up.CDS_SetSpeed(2, -speed_right)
+
+
 def straight_if():
-    if unify_all > down_value + 4000:
-        straight(1000)
-    elif unify_all > down_value + 2000:
-        straight(800)
-    elif unify_all > down_value + 1500:
-        straight(700)
-    else:
-        straight(600)
+    # if unify_all > down_value + 3000:
+    #     straight(1000)
+    # elif unify_all > down_value + 2000:
+    #     straight(900)
+    # elif unify_all > down_value + 1500:
+    #     straight(700)
+    # else:
+    #     straight(600)
+    straight(500)
 
 
 def stop():
@@ -309,7 +392,7 @@ def back_sleep():
     time.sleep(0.01)
     back(400)
     time.sleep(0.01)
-    back(1000)
+    back(700)
     time.sleep(0.15)
 
 
@@ -318,7 +401,7 @@ def back_sleep_low():
     time.sleep(0.01)
     back(400)
     time.sleep(0.01)
-    back(1000)
+    back(700)
     time.sleep(0.1)
 
 
@@ -344,7 +427,7 @@ def get_io_data(up):
 
 def check_time():
     global check_left_time, check_right_time, check_down_time, down, escape_time, escape_flag_right, \
-        escape_flag_left, tag_lock_time, tag_lock_flag
+        escape_flag_left, tag_lock_time, tag_lock_flag,check_up_time,up_flag
 
     if io_data[6] == 0:
         check_left_time += 1
@@ -354,23 +437,16 @@ def check_time():
         check_right_time += 1
     else:
         check_right_time = 0
-    if adc_left == 1 and adc_right == 1:
-        down = 1
+    if down:
+        if adc_left == 0 and adc_right == 0 and io_data[3] == 0 and io_data[4] == 0:
+            check_up_time += 1
+        if check_up_time>=10:
+            up_flag = 0
+            down=0
     else:
-        down = 0
-    # if adc_value[0] < down_value:
-    #     check_down_time += 1
-    # else:
-    #     check_down_time = 0
-    #     down = 0
-    # #
-    # if not down:
-    #     if check_down_time >= down_time_value:
-    #         down = 1
-    # if unify_all < down_value:
-    #     down = 1
-    # else:
-    #     down = 0
+        if adc_left == 1 and adc_right == 1:
+            down = 1
+
     if tag_lock_flag:
         tag_lock_time -= 1
         if tag_lock_time <= 0:
@@ -381,37 +457,20 @@ def check_time():
 def down_act():
     global tai_flag, up_flag, buffer, down, c_time
     if up_flag:
-        stop()
-        time.sleep(0.2)
-        back(600)
-        time.sleep(1)
-        stop()
-        time.sleep(0.4)
-        back(1000)
-        time.sleep(1.2)
-        back(400)
-        time.sleep(0.1)
-        # while_sleep_up(130)
-        stop()
-        time.sleep(0.1)
-        left(1000)
-        time.sleep(0.3)
-        up_flag = 0
-        down = 0
-        buffer = 20
+        go_up()
     else:
         if io_data[0] == 0 and io_data[1] == 0:
             up_flag = 1
         else:
-            c_time += 1
-            left(800)
+            # c_time += 1
+            left(700)
 
 
 def up_act():
     if io_data[3] == 0 and io_data[4] == 0:
         if tag_flag:
             if tag_safe:
-                April_tag_move()
+                April_tag_move_pid()
             else:
                 April_tag_escape()
         else:
@@ -419,34 +478,30 @@ def up_act():
                 straight_if()
             elif io_data[0] == 1 and io_data[1] == 0:
                 if tag_lock_flag:
-                    right(700)
+                    right(600)
                 else:
                     right(1000)
             elif io_data[0] == 0 and io_data[1] == 1:
                 if tag_lock_flag:
-                    left(700)
+                    left(600)
                 else:
                     left(1000)
             else:
                 search_left_and_right()
     elif io_data[3] == 1 and io_data[4] == 0:
+        back_sleep()
         if tag_lock_flag:
-            back_sleep_low()
-            right(1000)
-            time.sleep(0.2)
+            right(600)
         else:
-            back_sleep()
             right(1000)
-            time.sleep(0.3)
+        time.sleep(0.3)
     elif io_data[3] == 0 and io_data[4] == 1:
+        back_sleep()
         if tag_lock_flag:
-            back_sleep_low()
-            left(1000)
-            time.sleep(0.2)
+            left(600)
         else:
-            back_sleep()
             left(1000)
-            time.sleep(0.3)
+        time.sleep(0.3)
     else:
         back_sleep()
         right(1000)
@@ -488,6 +543,71 @@ def Print():
         print(tag_lock_flag)
 
 
+def go_up():
+    if down:
+        back(700)
+    # stop()
+    # time.sleep(0.2)
+    # back(500)
+    # time.sleep(1)
+    # stop()
+    # time.sleep(0.4)
+    # back(1000)
+    # time.sleep(1.2)
+    # back(400)
+    # time.sleep(0.1)
+    # # while_sleep_up(130)
+    # stop()
+    # time.sleep(0.1)
+    # left(1000)
+    # time.sleep(0.3)
+
+
+def Go_Safe():
+    if camera_safe:
+        check_time()
+        if down:
+            down_act()
+        else:
+            up_act()
+    else:
+        stop()
+
+
+def Go_All():
+    check_time()
+    if down:
+        down_act()
+    else:
+        up_act()
+
+
+def Show_LCD():
+    global adc_value
+    up.LCD_SetFont(up.FONT_12X20)
+    up.LCD_SetForeColor(up.COLOR_GBLUE)
+    # up.LCD_PutString(0, 0, 'Go North All')
+    up.LCD_SetFont(up.FONT_12X20)
+    up.LCD_SetForeColor(up.COLOR_YELLOW)
+    up.LCD_PutString(0, 0, f'{adc_value[0]}')
+    up.LCD_Refresh()
+
+
+def Main_Read():
+    global unify_all, io_data, adc_left, adc_right, adc_value
+    adc_value = up.ADC_Get_All_Channle()
+    unify_all = adc_value[0] + adc_value[1] + adc_value[2] + adc_value[3] + adc_value[4]
+    io_data = get_io_data(up)
+    if adc_value[6] < 2000:
+        adc_left = 0
+    else:
+        adc_left = 1
+    if adc_value[7] < 2000:
+        adc_right = 0
+    else:
+        adc_right = 1
+
+
 if __name__ == "__main__":
     up = uptech.UpTech()
     up.LCD_Open(2)
@@ -504,46 +624,24 @@ if __name__ == "__main__":
     # target3 = threading.Thread(target=Print)
     # target3.start()
     print("Ready——")
+
     # while True:
     #     io_data = get_io_data(up)
     #     if io_data[6] == 0 and io_data[7] == 0:
-    #         down_act()
+    #         print("Go!!")
+    #         go_up()
     #         break
-    print("Go!!")
+
     while True:
+        Main_Read()
+        Show_LCD()
+        Go_Safe()
+        # Go_All()
         # start_time = time.time()
-        adc_value = up.ADC_Get_All_Channle()
-        unify_all = adc_value[0] + adc_value[1] + adc_value[2] + adc_value[3] + adc_value[4]
-        io_data = get_io_data(up)
-        if adc_value[6] < 2000:
-            adc_left = 0
-        else:
-            adc_left = 1
-        if adc_value[7] < 2000:
-            adc_right = 0
-        else:
-            adc_right = 1
-        up.LCD_SetFont(up.FONT_12X20)
-        up.LCD_SetForeColor(up.COLOR_GBLUE)
-        # up.LCD_PutString(0, 0, 'Go North All')
-        up.LCD_SetFont(up.FONT_12X20)
-        up.LCD_SetForeColor(up.COLOR_YELLOW)
-        up.LCD_PutString(0, 0, f'{adc_value[0]}')
-        up.LCD_Refresh()
+
         # 0、1 正前方红外   3、4斜向下   6、7左右
-        # print(io_data)
-        # print(adc_value)
-        # straight(500,500)
-        # time.sleep(3)
         # print(unify_all)
-        # print(down)
-        # if camera_safe:
-        #     check_time()
-        #     if down:
-        #         down_act()
-        #     else:
-        #         up_act()
-        # else:
-        #     stop()
+        # print(tag_safe)
+
         # end_time = time.time()  # 记录循环结束的时间
         # execution_time = end_time - start_time  # 计算执行时间
