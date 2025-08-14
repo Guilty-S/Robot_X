@@ -146,17 +146,8 @@ class ApriltagDetect:
         tag_flag = 0
         index = 0
 
-        # 新增：初始化敌方块计数器
-        enemy_count = 0
-
         if tags:
             tag_flag = 1  # 这是个标志位
-
-            # 新增：首先统计所有敌方块数量
-            for tag in tags:
-                if tag.tag_id == di_fang_kuai:
-                    enemy_count += 1
-
             # 原有逻辑保持不变
             for i in range(1, len(tags)):
                 # 循环从第二个（results[1]）索引开始，进行冒泡排序。（因为前方index是从零开始的）所以排序没有遗漏
@@ -200,9 +191,6 @@ class ApriltagDetect:
         else:
             tag_flag = 0
 
-        # 新增：根据敌方块数量设置go_flag
-        go_flag = 1 if enemy_count == 2 else 0
-
     def get_distance(self, H, t):
         ss = 0.5
         src = np.array([[-ss, -ss, 0],
@@ -242,14 +230,12 @@ def April_start_detect():
     cap = cv2.VideoCapture('/dev/video0')
     cap.set(3, 320)
     cap.set(4, 240)
-    cap.set(cv2.CAP_PROP_FPS, 60)
     ad = ApriltagDetect()
     while True:
         ret, frame = cap.read()
         if camera_reset:
             cap.set(3, 320)
             cap.set(4, 240)
-            cap.set(cv2.CAP_PROP_FPS, 60)
             time.sleep(0.5)
             camera_reset = 0
         # if camera_reload:
@@ -277,16 +263,17 @@ def April_start_detect():
         # cv2.imshow('Camera', frame)
         # cv2.imshow('Mask', mask)
         if tags:
-            #     # print(tags)
-            #     # print(index)
-            #     print(f"中心位置{mid}")
-            #     print(f"距离{distance}")
-            #     print(f"宽度{tag_width}")
-            #     if tag_safe == 0:
-            #         print("炸弹")
-            #     else:
             if tag_safe:
                 tag_lock_flag = 1
+            # print(tags)
+            # print(index)
+        #     print(f"中心位置{mid}")
+        #     print(f"距离{distance}")
+        #     print(f"宽度{tag_width}")
+        #     if tag_safe == 0:
+        #         print("炸弹")
+        #     else:
+        #         if tags[index].tag_id == 1:
         #             print("敌方")
         #         elif tags[index].tag_id == 0:
         #             print("中立")
@@ -297,14 +284,9 @@ def April_start_detect():
     cv2.destroyAllWindows()
 
 
-def straight_pid(speed_left, speed_right):
-    up.CDS_SetSpeed(1, -speed_left)
-    up.CDS_SetSpeed(2, -speed_right)
-
-
 def April_tag_move_pid():
     global tag_control_output, tag_control_output_final, mid, tag_width
-    tag_pid = PIDController(Kp=-10, Ki=0, Kd=-1, gkd=0.0, out_limit=1000.0)
+    tag_pid = PIDController(Kp=-8, Ki=0, Kd=-1, gkd=0.0, out_limit=1000.0)
     tag_control_output = tag_pid.calculate(160, mid)
 
     # 计算基础速度并添加PID修正
@@ -312,21 +294,21 @@ def April_tag_move_pid():
     left_speed = base_speed + int(tag_control_output)
     right_speed = base_speed - int(tag_control_output)
 
-    # 速度限幅处理（假设有效范围0~800）
     MAX_SPEED = 800
     MIN_SPEED = -800
+
     left_speed = max(MIN_SPEED, min(MAX_SPEED, left_speed))
     right_speed = max(MIN_SPEED, min(MAX_SPEED, right_speed))
-    straight_pid(left_speed, right_speed)  # 使用限幅后的速度
-    # if distance > 170:
-    #     straight_pid(left_speed, right_speed)  # 使用限幅后的速度
-    # else:
-    #     if io_data[0] == 1 and io_data[1] == 0 and not escape_flag_right:
-    #         right(500)
-    #     elif io_data[0] == 0 and io_data[1] == 1 and not escape_flag_left:
-    #         left(500)
-    #     else:
-    #         straight_if()
+    # straight_pid(left_speed, right_speed)
+    if distance > 170:
+        straight_pid(left_speed, right_speed)
+    else:
+        if io_data[0] == 1 and io_data[1] == 0 and not escape_flag_right:
+            right(500)
+        elif io_data[0] == 0 and io_data[1] == 1 and not escape_flag_left:
+            left(500)
+        else:
+            straight_if()
 
 
 def April_tag_move():
@@ -377,6 +359,11 @@ def straight_if():
     straight(500)
 
 
+def straight_pid(speed_left, speed_right):
+    up.CDS_SetSpeed(1, -speed_left)
+    up.CDS_SetSpeed(2, -speed_right)
+
+
 def stop():
     up.CDS_SetSpeed(1, 0)
     up.CDS_SetSpeed(2, 0)
@@ -394,15 +381,6 @@ def back_sleep():
     time.sleep(0.01)
     back(700)
     time.sleep(0.15)
-
-
-def back_sleep_low():
-    stop()
-    time.sleep(0.01)
-    back(400)
-    time.sleep(0.01)
-    back(1000)
-    time.sleep(0.1)
 
 
 def left(speed):
@@ -441,10 +419,11 @@ def check_time():
     if down:
         if adc_left == 0 and adc_right == 0 and io_data[3] == 0 and io_data[4] == 0:
             check_up_time += 1
-        if check_up_time >= 10:
+        if check_up_time >= 30:
             up_flag = 0
             down = 0
             turn_flag = 1
+            check_up_time=0
     else:
         if adc_left == 1 and adc_right == 1:
             down = 1
@@ -458,7 +437,7 @@ def check_time():
 def down_act():
     global tai_flag, up_flag, buffer, down, c_time
     if up_flag:
-        back(700)
+        back(800)
     else:
         if io_data[0] == 0 and io_data[1] == 0:
             up_flag = 1
@@ -586,8 +565,8 @@ if __name__ == "__main__":
     up.CDS_SetMode(2, 1)
     print("test succeed")
     signal.signal(signal.SIGINT, signal_handler)
-    # target2 = threading.Thread(target=April_start_detect)
-    # target2.start()
+    target2 = threading.Thread(target=April_start_detect)
+    target2.start()
     # target3 = threading.Thread(target=Print)
     # target3.start()
     print("Ready——")
@@ -610,22 +589,18 @@ if __name__ == "__main__":
             adc_right = 0
         else:
             adc_right = 1
-        up.LCD_SetFont(up.FONT_12X20)
-        up.LCD_SetForeColor(up.COLOR_GBLUE)
-        # up.LCD_PutString(0, 0, 'Go North All')
-        up.LCD_SetFont(up.FONT_12X20)
-        up.LCD_SetForeColor(up.COLOR_YELLOW)
-        up.LCD_PutString(0, 0, f'{adc_value[0]}')
-        up.LCD_Refresh()
+        # up.LCD_SetFont(up.FONT_12X20)
+        # up.LCD_SetForeColor(up.COLOR_GBLUE)
+        # # up.LCD_PutString(0, 0, 'Go North All')
+        # up.LCD_SetFont(up.FONT_12X20)
+        # up.LCD_SetForeColor(up.COLOR_YELLOW)
+        # up.LCD_PutString(0, 0, f'{adc_value[0]}')
+        # up.LCD_Refresh()
         # 0、1 正前方红外   3、4斜向下   6、7左右
         # print(io_data)
         # print(adc_value)
-        # straight(500,500)
-        # time.sleep(3)
-        # print(unify_all)
-        # print(down)
-        Go_All()
-        # Go_Safe()
+        # Go_All()
+        Go_Safe()
 
         # end_time = time.time()  # 记录循环结束的时间
         # execution_time = end_time - start_time  # 计算执行时间
