@@ -14,7 +14,8 @@ down_value = 2200  # 灰度台上台下临界值
 tag_lock_time_value = 100  # 持续锁定
 down_time_value = 20
 
-turn_flag = 0
+message = 1
+turn_flag = 1
 check_up_time = 0
 execution_time = 0
 go_flag = 0
@@ -286,7 +287,7 @@ def April_start_detect():
 
 def April_tag_move_pid():
     global tag_control_output, tag_control_output_final, mid, tag_width
-    tag_pid = PIDController(Kp=-8, Ki=0, Kd=-1, gkd=0.0, out_limit=1000.0)
+    tag_pid = PIDController(Kp=-12, Ki=0, Kd=-1, gkd=0.0, out_limit=1000.0)
     tag_control_output = tag_pid.calculate(160, mid)
 
     # 计算基础速度并添加PID修正
@@ -356,7 +357,7 @@ def straight_if():
     #     straight(700)
     # else:
     #     straight(600)
-    straight(500)
+    straight(600)
 
 
 def straight_pid(speed_left, speed_right):
@@ -379,8 +380,17 @@ def back_sleep():
     time.sleep(0.01)
     back(400)
     time.sleep(0.01)
-    back(700)
+    back(1000)
     time.sleep(0.15)
+
+
+def back_sleep_low():
+    stop()
+    time.sleep(0.01)
+    back(400)
+    time.sleep(0.01)
+    back(1000)
+    time.sleep(0.1)
 
 
 def left(speed):
@@ -419,11 +429,11 @@ def check_time():
     if down:
         if adc_left == 0 and adc_right == 0 and io_data[3] == 0 and io_data[4] == 0:
             check_up_time += 1
-        if check_up_time >= 30:
+        if check_up_time >= 20:
             up_flag = 0
             down = 0
             turn_flag = 1
-            check_up_time=0
+            check_up_time = 0
     else:
         if adc_left == 1 and adc_right == 1:
             down = 1
@@ -435,14 +445,20 @@ def check_time():
 
 
 def down_act():
-    global tai_flag, up_flag, buffer, down, c_time
+    global tai_flag, up_flag, buffer, down, c_time,turn_flag,check_up_time
     if up_flag:
+        c_time += 1
         back(800)
+        if c_time > 500:
+            up_flag = 0
+            down = 0
+            turn_flag = 1
+            check_up_time = 0
+            c_time=0
     else:
         if io_data[0] == 0 and io_data[1] == 0:
             up_flag = 1
         else:
-            c_time += 1
             left(800)
 
 
@@ -469,19 +485,23 @@ def up_act():
             else:
                 search_left_and_right()
     elif io_data[3] == 1 and io_data[4] == 0:
-        back_sleep()
         if tag_lock_flag:
-            right(600)
-        else:
+            back_sleep_low()
             right(1000)
-        time.sleep(0.3)
-    elif io_data[3] == 0 and io_data[4] == 1:
-        back_sleep()
-        if tag_lock_flag:
-            left(600)
+            time.sleep(0.2)
         else:
+            back_sleep()
+            right(1000)
+            time.sleep(0.3)
+    elif io_data[3] == 0 and io_data[4] == 1:
+        if tag_lock_flag:
+            back_sleep_low()
             left(1000)
-        time.sleep(0.3)
+            time.sleep(0.2)
+        else:
+            back_sleep()
+            left(1000)
+            time.sleep(0.3)
     else:
         back_sleep()
         right(1000)
@@ -489,7 +509,7 @@ def up_act():
 
 def search_left_and_right():
     global check_left_time, check_right_time, t, io_data, adc_value
-    if check_right_time >= 2:
+    if check_right_time >= 4:
         while True:
             t += 1
             io_data = get_io_data(up)
@@ -501,7 +521,7 @@ def search_left_and_right():
                 t = 0
                 check_right_time = 0
                 break
-    elif check_left_time >= 2:
+    elif check_left_time >= 4:
         while True:
             t += 1
             io_data = get_io_data(up)
@@ -545,7 +565,7 @@ def Go_Safe():
             down_act()
         else:
             if turn_flag:
-                right(1000)
+                left(1000)
                 time.sleep(0.4)
                 turn_flag = 0
             else:
@@ -569,12 +589,16 @@ if __name__ == "__main__":
     target2.start()
     # target3 = threading.Thread(target=Print)
     # target3.start()
-    print("Ready——")
-    # while True:
-    #     io_data = get_io_data(up)
-    #     if io_data[6] == 0 and io_data[7] == 0:
-    #         down_act()
-    #         break
+    while True:
+        io_data = get_io_data(up)
+        if message:
+            if camera_safe:
+                print("Ready——")
+                message=0
+        if io_data[6] == 0 and io_data[7] == 0:
+            back(800)
+            time.sleep(0.2)
+            break
     print("Go!!")
     while True:
         # start_time = time.time()
@@ -596,10 +620,11 @@ if __name__ == "__main__":
         # up.LCD_SetForeColor(up.COLOR_YELLOW)
         # up.LCD_PutString(0, 0, f'{adc_value[0]}')
         # up.LCD_Refresh()
-        # 0、1 正前方红外   3、4斜向下   6、7左右
+        # # 0、1 正前方红外   3、4斜向下   6、7左右
         # print(io_data)
         # print(adc_value)
         # Go_All()
+        # print(adc_value)
         Go_Safe()
 
         # end_time = time.time()  # 记录循环结束的时间
