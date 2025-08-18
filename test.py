@@ -14,6 +14,7 @@ down_value = 470  # 灰度台上台下临界值
 tag_lock_time_value = 100  # 持续锁定
 down_time_value = 20
 
+adc_r=0
 message = 1
 turn_flag = 1
 check_up_time = 0
@@ -48,7 +49,7 @@ tai_flag_time = 0
 escape_flag_right = 0
 escape_flag_left = 0
 down = 1
-up_flag = 0
+up_flag = 1
 t = 0
 check_right_time = 0
 check_left_time = 0
@@ -357,7 +358,7 @@ def straight_if():
     #     straight(700)
     # else:
     #     straight(600)
-    straight(600)
+    straight(500)
 
 
 def straight_pid(speed_left, speed_right):
@@ -418,11 +419,11 @@ def check_time():
     global check_left_time, check_right_time, check_down_time, down, escape_time, escape_flag_right, \
         escape_flag_left, tag_lock_time, tag_lock_flag, check_up_time, up_flag, turn_flag
 
-    if io_data[6] == 0:
+    if io_data[7] == 0:
         check_left_time += 1
     else:
         check_left_time = 0
-    if io_data[7] == 0:
+    if adc_r == 0:
         check_right_time += 1
     else:
         check_right_time = 0
@@ -444,8 +445,36 @@ def check_time():
             tag_lock_time = tag_lock_time_value
             tag_lock_flag = 0
 
+def down_act_old():
+    global tai_flag, up_flag, buffer, down, c_time
+    if up_flag:
+        stop()
+        time.sleep(0.2)
+        back(500)
+        time.sleep(1)
+        stop()
+        time.sleep(0.2)
+        back(1000)
+        time.sleep(1.2)
+        back(400)
+        time.sleep(0.1)
+        # while_sleep_up(130)
+        stop()
+        time.sleep(0.1)
+        left(1000)
+        time.sleep(0.3)
+        up_flag = 0
+        down = 0
+        buffer = 20
+    else:
+        if io_data[0] == 0 and io_data[1] == 0:
+            up_flag = 1
+        else:
+            c_time += 1
+            left(800)
 
-def down_act():
+
+def down_act_new():
     global tai_flag, up_flag, buffer, down, c_time,turn_flag,check_up_time
     if up_flag:
         c_time += 1
@@ -459,6 +488,8 @@ def down_act():
     else:
         if io_data[0] == 0 and io_data[1] == 0:
             up_flag = 1
+            stop()
+            time.sleep(0.3)
         else:
             left(800)
 
@@ -506,34 +537,19 @@ def up_act():
     else:
         back_sleep()
         right(1000)
+        time.sleep(0.2)
 
 
 def search_left_and_right():
     global check_left_time, check_right_time, t, io_data, adc_value
     if check_right_time >= 3:
-        while True:
-            t += 1
-            io_data = get_io_data(up)
-            if tag_lock_flag:
-                right(700)
-            else:
-                right(1000)
-            if io_data[0] == 0 and io_data[1] == 0 or t >= 200 or 150 < mid < 170:
-                t = 0
-                check_right_time = 0
-                break
+        right(1000)
+        time.sleep(0.4)
+        check_right_time=0
     elif check_left_time >= 3:
-        while True:
-            t += 1
-            io_data = get_io_data(up)
-            if tag_lock_flag:
-                left(700)
-            else:
-                left(1000)
-            if io_data[0] == 0 and io_data[1] == 0 or t >= 200 or 150 < mid < 170:
-                t = 0
-                check_left_time = 0
-                break
+        left(1000)
+        time.sleep(0.4)
+        check_left_time=0
     else:
         straight_if()
 
@@ -548,7 +564,7 @@ def Go_All():
     global turn_flag
     check_time()
     if down:
-        down_act()
+        down_act_new()
     else:
         if turn_flag:
             right(1000)
@@ -558,12 +574,12 @@ def Go_All():
             up_act()
 
 
-def Go_Safe():
+def Go_Safe_new():
     global turn_flag
     if camera_safe:
         check_time()
         if down:
-            down_act()
+            down_act_new()
         else:
             if turn_flag:
                 left(1000)
@@ -574,6 +590,38 @@ def Go_Safe():
     else:
         stop()
 
+
+def Go_Safe_old():
+    if camera_safe:
+        check_time()
+        if down:
+            down_act_old()
+        else:
+            up_act()
+    else:
+        stop()
+def get_adio_data():
+    global adc_value,adc_right,adc_left,adc_r
+    global io_data
+    adc_value = up.ADC_Get_All_Channle()
+    io_all_input = up.ADC_IO_GetAllInputLevel()
+    io_array = '{:08b}'.format(io_all_input)
+    io_data.clear()
+    for index, value in enumerate(io_array):
+        io = (int)(value)
+        io_data.insert(0, io)
+    if adc_value[6] < 2000:
+        adc_left = 0
+    else:
+        adc_left = 1
+    if adc_value[7] < 2000:
+        adc_right = 0
+    else:
+        adc_right = 1
+    if adc_value[2] < 2000:
+        adc_r = 0
+    else:
+        adc_r = 1
 
 if __name__ == "__main__":
     up = uptech.UpTech()
@@ -591,29 +639,27 @@ if __name__ == "__main__":
     # target3 = threading.Thread(target=Print)
     # target3.start()
     while True:
-        io_data = get_io_data(up)
+        get_adio_data()
+        # print(io_data)
+        # print(adc_r)
+        # time.sleep(0.1)
         if message:
             if camera_safe:
                 print("Ready——")
                 message=0
-        if io_data[6] == 0 and io_data[7] == 0:
+        if io_data[7] == 0 and adc_r == 0:
+            # down_act_old()
             back(800)
             time.sleep(0.2)
             break
     print("Go!!")
     while True:
+        get_adio_data()
         # start_time = time.time()
-        adc_value = up.ADC_Get_All_Channle()
-        unify_all = adc_value[0] + adc_value[1] + adc_value[2] + adc_value[3] + adc_value[4]
-        io_data = get_io_data(up)
-        if adc_value[6] < 2000:
-            adc_left = 0
-        else:
-            adc_left = 1
-        if adc_value[7] < 2000:
-            adc_right = 0
-        else:
-            adc_right = 1
+        # adc_value = up.ADC_Get_All_Channle()
+        # unify_all = adc_value[0] + adc_value[1] + adc_value[2] + adc_value[3] + adc_value[4]
+        # io_data = get_io_data(up)
+
         # up.LCD_SetFont(up.FONT_12X20)
         # up.LCD_SetForeColor(up.COLOR_GBLUE)
         # # up.LCD_PutString(0, 0, 'Go North All')
@@ -623,10 +669,10 @@ if __name__ == "__main__":
         # up.LCD_Refresh()
         # # 0、1 正前方红外   3、4斜向下   6、7左右
         # print(io_data)
-        # print(unify_all)
-        # Go_All()
         # print(adc_value)
-        Go_Safe()
+
+        # Go_All()
+        Go_Safe_new()
 
         # end_time = time.time()  # 记录循环结束的时间
         # execution_time = end_time - start_time  # 计算执行时间
