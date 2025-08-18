@@ -10,7 +10,7 @@ import signal
 import threading
 
 your_team_blue = 0  # 1为蓝队，0为黄队
-down_value = 2200  # 灰度台上台下临界值
+down_value = 470  # 灰度台上台下临界值
 tag_lock_time_value = 100  # 持续锁定
 down_time_value = 20
 
@@ -287,7 +287,7 @@ def April_start_detect():
 
 def April_tag_move_pid():
     global tag_control_output, tag_control_output_final, mid, tag_width
-    tag_pid = PIDController(Kp=-12, Ki=0, Kd=-1, gkd=0.0, out_limit=1000.0)
+    tag_pid = PIDController(Kp=-8, Ki=0, Kd=-1, gkd=0.0, out_limit=1000.0)
     tag_control_output = tag_pid.calculate(160, mid)
 
     # 计算基础速度并添加PID修正
@@ -349,11 +349,11 @@ def straight(speed):
 
 
 def straight_if():
-    # if unify_all > down_value + 4000:
+    # if unify_all > down_value + 400:
     #     straight(1000)
-    # elif unify_all > down_value + 2000:
+    # elif unify_all > down_value + 300:
     #     straight(800)
-    # elif unify_all > down_value + 1500:
+    # elif unify_all > down_value + 200:
     #     straight(700)
     # else:
     #     straight(600)
@@ -404,6 +404,7 @@ def right(speed):
 
 
 def get_io_data(up):
+    global io_data
     io_all_input = up.ADC_IO_GetAllInputLevel()
     io_array = '{:08b}'.format(io_all_input)
     io_data = []
@@ -429,7 +430,7 @@ def check_time():
     if down:
         if adc_left == 0 and adc_right == 0 and io_data[3] == 0 and io_data[4] == 0:
             check_up_time += 1
-        if check_up_time >= 20:
+        if check_up_time >= 100:
             up_flag = 0
             down = 0
             turn_flag = 1
@@ -509,7 +510,7 @@ def up_act():
 
 def search_left_and_right():
     global check_left_time, check_right_time, t, io_data, adc_value
-    if check_right_time >= 4:
+    if check_right_time >= 3:
         while True:
             t += 1
             io_data = get_io_data(up)
@@ -521,7 +522,7 @@ def search_left_and_right():
                 t = 0
                 check_right_time = 0
                 break
-    elif check_left_time >= 4:
+    elif check_left_time >= 3:
         while True:
             t += 1
             io_data = get_io_data(up)
@@ -622,7 +623,7 @@ if __name__ == "__main__":
         # up.LCD_Refresh()
         # # 0、1 正前方红外   3、4斜向下   6、7左右
         # print(io_data)
-        # print(adc_value)
+        # print(unify_all)
         # Go_All()
         # print(adc_value)
         Go_Safe()
