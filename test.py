@@ -548,43 +548,43 @@ def up_act():
         time.sleep(0.2)
 
 
-# def search_left_and_right():
-#     global check_left_time, check_right_time, t, io_data, adc_value
-#     if check_right_time >= 1:
-#         stop()
-#         time.sleep(0.1)
-#         right(1000)
-#         time.sleep(0.5)
-#     elif check_left_time >= 1:
-#         time.sleep(0.1)
-#         left(1000)
-#         time.sleep(0.5)
-#     else:
-#         straight_if()
-
-
 def search_left_and_right():
     global check_left_time, check_right_time, t, io_data, adc_value
     if check_right_time >= 1:
-        while True:
-            t += 1
-            get_adio_data()
-            right(1000)
-            if io_data[0] == 0 and io_data[1] == 0 or t >= 200 or 150 < mid < 170:
-                t = 0
-                check_right_time = 0
-                break
+        stop()
+        time.sleep(0.1)
+        right(1000)
+        time.sleep(0.5)
     elif check_left_time >= 1:
-        while True:
-            t += 1
-            get_adio_data()
-            left(1000)
-            if io_data[0] == 0 and io_data[1] == 0 or t >= 200 or 150 < mid < 170:
-                t = 0
-                check_left_time = 0
-                break
+        time.sleep(0.1)
+        left(1000)    
+        time.sleep(0.5)
     else:
         straight_if()
+
+
+# def search_left_and_right():
+#     global check_left_time, check_right_time, t, io_data, adc_value
+#     if check_right_time >= 1:
+#         while True:
+#             t += 1
+#             get_adio_data()
+#             right(1000)
+#             if io_data[0] == 0 and io_data[1] == 0 or t >= 200:
+#                 t = 0
+#                 check_right_time = 0
+#                 break
+#     elif check_left_time >= 1:
+#         while True:
+#             t += 1
+#             get_adio_data()
+#             left(1000)
+#             if io_data[0] == 0 and io_data[1] == 0 or t >= 200:
+#                 t = 0
+#                 check_left_time = 0
+#                 break
+#     else:
+#         straight_if()
 
 
 # def search_left_and_right():
@@ -735,7 +735,7 @@ if __name__ == "__main__":
         # # 0、1 正前方红外   3、4斜向下   6、7左右
         # print(io_data)
         # print(adc_value)
-
+        # time.sleep(0.1)
         # Go_All()
         Go_Safe_new()
 
