@@ -10,14 +10,14 @@ import signal
 import threading
 
 your_team_blue = 0  # 1为蓝队，0为黄队
-down_value = 640  # 灰度台上台下临界值
+down_value = 640#(430+200)  # 灰度台上台下临界值
 tag_lock_time_value = 100  # 持续锁定
 down_time_value = 20
 
-right_flag=0
-left_flag=0
+right_flag = 0
+left_flag = 0
 adc_r = 0
-adc_l=0
+adc_l = 0
 message = 1
 turn_flag = 1
 check_up_time = 0
@@ -280,7 +280,7 @@ def April_start_detect():
 
 def April_tag_move_pid():
     global tag_control_output, tag_control_output_final, mid, tag_width
-    tag_pid = PIDController(Kp=-12, Ki=0, Kd=-1, gkd=0.0, out_limit=1000.0)
+    tag_pid = PIDController(Kp=-12, Ki=0, Kd=-3, gkd=0.0, out_limit=1000.0)
     tag_control_output = tag_pid.calculate(160, mid)
 
     # 计算基础速度并添加PID修正
@@ -294,7 +294,7 @@ def April_tag_move_pid():
     left_speed = max(MIN_SPEED, min(MAX_SPEED, left_speed))
     right_speed = max(MIN_SPEED, min(MAX_SPEED, right_speed))
     # straight_pid(left_speed, right_speed)
-    if distance > 170:
+    if distance > 140:
         straight_pid(left_speed, right_speed)
     else:
         if io_data[0] == 1 and io_data[1] == 0 and not escape_flag_right:
@@ -325,7 +325,7 @@ def April_tag_move():
 
 def April_tag_escape():
     global escape_flag_right, escape_flag_left
-    if distance < 170:
+    if distance < 150:
         back_sleep()
         right(1000)
         time.sleep(0.5)
@@ -345,11 +345,11 @@ def straight_if():
     if unify_all > down_value + 400:
         straight(1000)
     elif unify_all > down_value + 300:
-        straight(800)
+        straight(900)
     elif unify_all > down_value + 200:
-        straight(700)
+        straight(800)
     else:
-        straight(600)
+        straight(700)
     # straight(500)
 
 
@@ -418,9 +418,11 @@ def get_io_data(up):
 
 def check_time():
     global check_left_time, check_right_time, check_down_time, down, escape_time, escape_flag_right, \
-        escape_flag_left, tag_lock_time, tag_lock_flag, check_up_time, up_flag, turn_flag,left_flag,right_flag
-
-
+        escape_flag_left, tag_lock_time, tag_lock_flag, check_up_time, up_flag, turn_flag, left_flag, right_flag, t
+    if io_data[0] == 0 or io_data[1] == 0:
+        right_flag = 0
+        left_flag = 0
+        t = 0
     if adc_l == 0:
         check_left_time += 1
     else:
@@ -429,12 +431,6 @@ def check_time():
         check_right_time += 1
     else:
         check_right_time = 0
-    # if check_right_time >= 2:
-    #     right_flag=1
-    #     check_right_time = 0
-    # if check_left_time >= 2:
-    #     left_flag = 1
-    #     check_left_time = 0
     if down:
         if adc_left == 0 and adc_right == 0 and io_data[3] == 0 and io_data[4] == 0:
             check_up_time += 1
@@ -523,7 +519,7 @@ def up_act():
                 else:
                     left(1000)
             else:
-                search_left_and_right()
+                search_left_and_right_if()
     elif io_data[3] == 1 and io_data[4] == 0:
         if tag_lock_flag:
             back_sleep_low()
@@ -548,67 +544,70 @@ def up_act():
         time.sleep(0.2)
 
 
-def search_left_and_right():
+def search_left_and_right_sleep():
     global check_left_time, check_right_time, t, io_data, adc_value
     if check_right_time >= 1:
         stop()
         time.sleep(0.1)
         right(1000)
         time.sleep(0.5)
+        check_right_time = 0
     elif check_left_time >= 1:
+        stop()
         time.sleep(0.1)
-        left(1000)    
+        left(1000)
         time.sleep(0.5)
+        check_left_time = 0
     else:
         straight_if()
 
 
-# def search_left_and_right():
-#     global check_left_time, check_right_time, t, io_data, adc_value
-#     if check_right_time >= 1:
-#         while True:
-#             t += 1
-#             get_adio_data()
-#             right(1000)
-#             if io_data[0] == 0 and io_data[1] == 0 or t >= 200:
-#                 t = 0
-#                 check_right_time = 0
-#                 break
-#     elif check_left_time >= 1:
-#         while True:
-#             t += 1
-#             get_adio_data()
-#             left(1000)
-#             if io_data[0] == 0 and io_data[1] == 0 or t >= 200:
-#                 t = 0
-#                 check_left_time = 0
-#                 break
-#     else:
-#         straight_if()
+def search_left_and_right_while():
+    global check_left_time, check_right_time, t, io_data, adc_value
+    if check_right_time >= 1:
+        while True:
+            t += 1
+            get_adio_data()
+            right(1000)
+            if io_data[0] == 0 and io_data[1] == 0 or t >= 200 or 150 < mid < 170:
+                t = 0
+                check_right_time = 0
+                break
+    elif check_left_time >= 1:
+        while True:
+            t += 1
+            get_adio_data()
+            left(1000)
+            if io_data[0] == 0 and io_data[1] == 0 or t >= 200 or 150 < mid < 170:
+                t = 0
+                check_left_time = 0
+                break
+    else:
+        straight_if()
 
 
-# def search_left_and_right():
-#     global check_left_time, check_right_time, t, io_data, adc_value,right_flag,left_flag
-#     if right_flag:
-#         t += 1
-#         if tag_lock_flag:
-#             right(700)
-#         else:
-#             right(1000)
-#         if io_data[0] == 0 or io_data[1] == 0 or t >= 200 or 150 < mid < 170:
-#             right_flag=0
-#             left_flag=0
-#     elif left_flag:
-#         t += 1
-#         if tag_lock_flag:
-#             left(700)
-#         else:
-#             left(1000)
-#         if io_data[0] == 0 or io_data[1] == 0 or t >= 200 or 150 < mid < 170:
-#             left_flag = 0
-#             right_flag=0
-#     else:
-#         straight_if()
+def search_left_and_right_if():
+    global check_left_time, check_right_time, t, io_data, adc_value, right_flag, left_flag
+    if adc_l == 0:
+        left_flag = 1
+    if adc_r == 0:
+        right_flag = 1
+    if right_flag:
+        t += 1
+        right(1000)
+        # print("right")
+        if t >= 200:
+            right_flag = 0
+            t = 0
+    elif left_flag:
+        t += 1
+        left(1000)
+        # print("left")
+        if t >= 200:
+            left_flag = 0
+            t = 0
+    else:
+        straight_if()
 
 
 def Print():
@@ -661,7 +660,7 @@ def Go_Safe_old():
 
 def get_adio_data():
     global adc_value, adc_right, adc_left, adc_r, unify_all
-    global io_data,adc_l
+    global io_data, adc_l
     adc_value = up.ADC_Get_All_Channle()
     unify_all = adc_value[0]
     io_all_input = up.ADC_IO_GetAllInputLevel()
@@ -686,6 +685,14 @@ def get_adio_data():
         adc_r = 0
     else:
         adc_r = 1
+    # if io_data[6] == 0:
+    #     adc_l = 0
+    # else:
+    #     adc_l = 1
+    # if io_data[7] == 0:
+    #     adc_r = 0
+    # else:
+    #     adc_r = 1
 
 
 if __name__ == "__main__":
@@ -712,7 +719,7 @@ if __name__ == "__main__":
     #         if camera_safe:
     #             print("Ready——")
     #             message = 0
-    #     if io_data[7] == 0 and adc_r == 0:
+    #     if adc_r == 0 and adc_l == 0:
     #         # down_act_old()
     #         back(1000)
     #         time.sleep(0.1)
@@ -736,6 +743,7 @@ if __name__ == "__main__":
         # print(io_data)
         # print(adc_value)
         # time.sleep(0.1)
+
         # Go_All()
         Go_Safe_new()
 
