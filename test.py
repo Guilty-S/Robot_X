@@ -9,7 +9,7 @@ import numpy as np
 import signal
 import threading
 
-your_team_blue = 0  # 1为蓝队，0为黄队
+your_team_blue = 1  # 1为蓝队，0为黄队
 down_value = 640#(430+200)  # 灰度台上台下临界值
 tag_lock_time_value = 100  # 持续锁定
 down_time_value = 20
@@ -710,17 +710,17 @@ if __name__ == "__main__":
     target2.start()
     # target3 = threading.Thread(target=Print)
     # target3.start()
-    while True:
-        get_adio_data()
-        if message:
-            if camera_safe:
-                print("Ready——")
-                message = 0
-        if adc_r == 0 and adc_l == 0:
-            back(1000)
-            time.sleep(0.1)
-            break
-    print("Go!!")
+    # while True:
+    #     get_adio_data()
+    #     if message:
+    #         if camera_safe:
+    #             print("Ready——")
+    #             message = 0
+    #     if adc_r == 0 and adc_l == 0:
+    #         back(1000)
+    #         time.sleep(0.1)
+    #         break
+    # print("Go!!")
     while True:
         get_adio_data()
         Go_Safe_new()
