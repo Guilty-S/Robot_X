@@ -17,6 +17,7 @@ down_time_value = 20
 right_flag=0
 left_flag=0
 adc_r = 0
+adc_l=0
 message = 1
 turn_flag = 1
 check_up_time = 0
@@ -63,14 +64,17 @@ adc_last_3 = 0
 adc_last_4 = 0
 unify_all = 0
 buffer = 0
-if your_team_blue:
-    di_fang_kuai = 2  # 敌方块
-    zhong_li_kuai = 0  # 中立块
-    zha_dan_kuai = 1  # 炸弹块
-else:
-    di_fang_kuai = 1  # 敌方块
-    zhong_li_kuai = 0  # 中立块
-    zha_dan_kuai = 2  # 炸弹块
+# if your_team_blue:
+#     di_fang_kuai = 2  # 敌方块
+#     zhong_li_kuai = 0  # 中立块
+#     zha_dan_kuai = 1  # 炸弹块
+# else:
+#     di_fang_kuai = 1  # 敌方块
+#     zhong_li_kuai = 0  # 中立块
+#     zha_dan_kuai = 2  # 炸弹块
+di_fang_kuai = 2  # 敌方块
+zhong_li_kuai = 1  # 中立块
+zha_dan_kuai = 0  # 炸弹块
 
 
 class PIDController:
@@ -139,7 +143,7 @@ class ApriltagDetect:
         mid0 = 0
         mid1 = 0
         mid2 = 0
-        global tag_flag, tag_safe, go_flag
+        global tag_flag, tag_safe
         global index
         global mid
         global tag_width
@@ -149,10 +153,8 @@ class ApriltagDetect:
         tags = self.at_detector.detect(gray)
         tag_flag = 0
         index = 0
-
         if tags:
             tag_flag = 1  # 这是个标志位
-            # 原有逻辑保持不变
             for i in range(1, len(tags)):
                 # 循环从第二个（results[1]）索引开始，进行冒泡排序。（因为前方index是从零开始的）所以排序没有遗漏
                 if tags[i].tag_id == di_fang_kuai or tags[i].tag_id == zhong_li_kuai:
@@ -172,18 +174,6 @@ class ApriltagDetect:
                                 index = i
                         elif tags[index].tag_id == zhong_li_kuai:
                             index = i
-                else:
-                    x_distance = int(self.get_distance(tags[index].homography, 4300))
-                    x_mid = tuple(tags[index].corners[0].astype(int))[0] / 2 + \
-                            tuple(tags[index].corners[2].astype(int))[0] / 2  # 计算tag的横向位置
-                    if x_distance < 120 and 140 < x_mid < 180:
-                        index = i
-                if tags[0].tag_id == zha_dan_kuai:
-                    x_distance = int(self.get_distance(tags[0].homography, 4300))
-                    x_mid = tuple(tags[0].corners[0].astype(int))[0] / 2 + \
-                            tuple(tags[0].corners[2].astype(int))[0] / 2  # 计算tag的横向位置
-                    if x_distance < 120 and 140 < x_mid < 180:
-                        index = 0
             if tags[index].tag_id == di_fang_kuai or tags[index].tag_id == zhong_li_kuai:  # 冒泡后如果最近的id是中立或敌方
                 tag_safe = 1
             else:  # 冒泡后如果的id是炸弹块(侧面证明了没有检测到敌方和中立)
@@ -269,8 +259,8 @@ def April_start_detect():
         if tags:
             if tag_safe:
                 tag_lock_flag = 1
-            # print(tags)
-            # print(index)
+        #     print(tags)
+        #     print(index)
         #     print(f"中心位置{mid}")
         #     print(f"距离{distance}")
         #     print(f"宽度{tag_width}")
@@ -431,7 +421,7 @@ def check_time():
         escape_flag_left, tag_lock_time, tag_lock_flag, check_up_time, up_flag, turn_flag,left_flag,right_flag
 
 
-    if io_data[7] == 0:
+    if adc_l == 0:
         check_left_time += 1
     else:
         check_left_time = 0
@@ -509,7 +499,7 @@ def down_act_new():
             stop()
             time.sleep(0.3)
         else:
-            left(800)
+            left(900)
 
 
 def up_act():
@@ -558,47 +548,49 @@ def up_act():
         time.sleep(0.2)
 
 
-def search_left_and_right():
-    global check_left_time, check_right_time, t, io_data, adc_value
-    if check_right_time >= 5:
-        stop()
-        time.sleep(0.1)
-        right(1000)
-        time.sleep(0.3)
-    elif check_left_time >= 5:
-        time.sleep(0.1)
-        left(1000)
-        time.sleep(0.3)
-    else:
-        straight_if()
 # def search_left_and_right():
 #     global check_left_time, check_right_time, t, io_data, adc_value
-#     if check_right_time >= 5:
-#         while True:
-#             t += 1
-#             io_data = get_io_data(up)
-#             if tag_lock_flag:
-#                 right(700)
-#             else:
-#                 right(1000)
-#             if io_data[0] == 0 and io_data[1] == 0 or t >= 200 or 150 < mid < 170:
-#                 t = 0
-#                 check_right_time = 0
-#                 break
-#     elif check_left_time >= 5:
-#         while True:
-#             t += 1
-#             io_data = get_io_data(up)
-#             if tag_lock_flag:
-#                 left(700)
-#             else:
-#                 left(1000)
-#             if io_data[0] == 0 and io_data[1] == 0 or t >= 200 or 150 < mid < 170:
-#                 t = 0
-#                 check_left_time = 0
-#                 break
+#     if check_right_time >= 1:
+#         stop()
+#         time.sleep(0.1)
+#         right(1000)
+#         time.sleep(0.5)
+#     elif check_left_time >= 1:
+#         time.sleep(0.1)
+#         left(1000)
+#         time.sleep(0.5)
 #     else:
 #         straight_if()
+
+
+def search_left_and_right():
+    global check_left_time, check_right_time, t, io_data, adc_value
+    if check_right_time >= 1:
+        while True:
+            t += 1
+            get_adio_data()
+            if tag_lock_flag:
+                right(700)
+            else:
+                right(1000)
+            if io_data[0] == 0 and io_data[1] == 0 or t >= 200 or 150 < mid < 170:
+                t = 0
+                check_right_time = 0
+                break
+    elif check_left_time >= 1:
+        while True:
+            t += 1
+            get_adio_data()
+            if tag_lock_flag:
+                left(700)
+            else:
+                left(1000)
+            if io_data[0] == 0 and io_data[1] == 0 or t >= 200 or 150 < mid < 170:
+                t = 0
+                check_left_time = 0
+                break
+    else:
+        straight_if()
 
 
 # def search_left_and_right():
@@ -675,7 +667,7 @@ def Go_Safe_old():
 
 def get_adio_data():
     global adc_value, adc_right, adc_left, adc_r, unify_all
-    global io_data
+    global io_data,adc_l
     adc_value = up.ADC_Get_All_Channle()
     unify_all = adc_value[0]
     io_all_input = up.ADC_IO_GetAllInputLevel()
@@ -693,6 +685,10 @@ def get_adio_data():
     else:
         adc_right = 1
     if adc_value[2] < 2000:
+        adc_l = 0
+    else:
+        adc_l = 1
+    if adc_value[3] < 2000:
         adc_r = 0
     else:
         adc_r = 1
@@ -713,21 +709,21 @@ if __name__ == "__main__":
     target2.start()
     # target3 = threading.Thread(target=Print)
     # target3.start()
-    while True:
-        get_adio_data()
-        # print(io_data)
-        # print(adc_r)
-        # time.sleep(0.1)
-        if message:
-            if camera_safe:
-                print("Ready——")
-                message = 0
-        if io_data[7] == 0 and adc_r == 0:
-            # down_act_old()
-            back(1000)
-            time.sleep(0.1)
-            break
-    print("Go!!")
+    # while True:
+    #     get_adio_data()
+    #     # print(io_data)
+    #     # print(adc_r)
+    #     # time.sleep(0.1)
+    #     if message:
+    #         if camera_safe:
+    #             print("Ready——")
+    #             message = 0
+    #     if io_data[7] == 0 and adc_r == 0:
+    #         # down_act_old()
+    #         back(1000)
+    #         time.sleep(0.1)
+    #         break
+    # print("Go!!")
     while True:
         get_adio_data()
         # start_time = time.time()
