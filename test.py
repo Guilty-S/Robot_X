@@ -64,17 +64,17 @@ adc_last_3 = 0
 adc_last_4 = 0
 unify_all = 0
 buffer = 0
-# if your_team_blue:
-#     di_fang_kuai = 2  # 敌方块
-#     zhong_li_kuai = 0  # 中立块
-#     zha_dan_kuai = 1  # 炸弹块
-# else:
-#     di_fang_kuai = 1  # 敌方块
-#     zhong_li_kuai = 0  # 中立块
-#     zha_dan_kuai = 2  # 炸弹块
-di_fang_kuai = 2  # 敌方块
-zhong_li_kuai = 1  # 中立块
-zha_dan_kuai = 0  # 炸弹块
+if your_team_blue:
+    di_fang_kuai = 2  # 敌方块
+    zhong_li_kuai = 0  # 中立块
+    zha_dan_kuai = 1  # 炸弹块
+else:
+    di_fang_kuai = 1  # 敌方块
+    zhong_li_kuai = 0  # 中立块
+    zha_dan_kuai = 2  # 炸弹块
+# di_fang_kuai = 2  # 敌方块
+# zhong_li_kuai = 1  # 中立块
+# zha_dan_kuai = 0  # 炸弹块
 
 
 class PIDController:
@@ -710,28 +710,24 @@ if __name__ == "__main__":
     target2.start()
     # target3 = threading.Thread(target=Print)
     # target3.start()
-    # while True:
-    #     get_adio_data()
-    #     # print(io_data)
-    #     # print(adc_r)
-    #     # time.sleep(0.1)
-    #     if message:
-    #         if camera_safe:
-    #             print("Ready——")
-    #             message = 0
-    #     if adc_r == 0 and adc_l == 0:
-    #         # down_act_old()
-    #         back(1000)
-    #         time.sleep(0.1)
-    #         break
-    # print("Go!!")
     while True:
         get_adio_data()
+        if message:
+            if camera_safe:
+                print("Ready——")
+                message = 0
+        if adc_r == 0 and adc_l == 0:
+            back(1000)
+            time.sleep(0.1)
+            break
+    print("Go!!")
+    while True:
+        get_adio_data()
+        Go_Safe_new()
         # start_time = time.time()
         # adc_value = up.ADC_Get_All_Channle()
         # unify_all = adc_value[0] + adc_value[1] + adc_value[2] + adc_value[3] + adc_value[4]
         # io_data = get_io_data(up)
-
         # up.LCD_SetFont(up.FONT_12X20)
         # up.LCD_SetForeColor(up.COLOR_GBLUE)
         # # up.LCD_PutString(0, 0, 'Go North All')
@@ -743,10 +739,7 @@ if __name__ == "__main__":
         # print(io_data)
         # print(adc_value)
         # time.sleep(0.1)
-
         # Go_All()
-        Go_Safe_new()
-
         # back(1000)
         # end_time = time.time()  # 记录循环结束的时间
         # execution_time = end_time - start_time  # 计算执行时间
